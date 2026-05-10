@@ -1,0 +1,25 @@
+# Python
+backend/venv/
+backend/__pycache__/
+backend/*.pyc
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+*.egg-info/
+
+# Environment & secrets
+backend/.env
+
+# Database (local data, don't share)
+backend/interviews.db
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo

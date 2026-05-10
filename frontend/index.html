@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interview Simulator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="app">
+
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar">
+    <div class="sidebar-top">
+      <div class="logo">
+        <span class="logo-icon">🎯</span>
+        <span class="logo-text">Interview Simulator</span>
+      </div>
+      <button class="new-session-btn" onclick="newSession()">+ 新面试</button>
+    </div>
+
+    <!-- History -->
+    <div class="sidebar-section history-section">
+      <div class="section-label">历史记录</div>
+      <div class="session-list" id="session-list">
+        <div class="session-empty">暂无历史记录</div>
+      </div>
+    </div>
+
+    <!-- Commands -->
+    <div class="sidebar-section">
+      <div class="section-label">快捷指令</div>
+      <div class="commands">
+        <button class="cmd-btn" onclick="sendCommand('hint')">💡 提示</button>
+        <button class="cmd-btn" onclick="sendCommand('skip')">⏭ 跳过此题</button>
+        <button class="cmd-btn" onclick="sendCommand('explain')">📝 解析答案</button>
+        <button class="cmd-btn" onclick="sendCommand('score')">📊 当前得分</button>
+        <button class="cmd-btn" onclick="sendCommand('harder')">🔥 加大难度</button>
+        <button class="cmd-btn" onclick="sendCommand('easier')">🌊 降低难度</button>
+        <button class="cmd-btn cmd-end" onclick="endInterview()">🏁 结束面试</button>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="sidebar-section">
+      <div class="section-label">当前会话</div>
+      <div class="session-stats">
+        <div class="stat-card timer-card" onclick="togglePause()" title="点击暂停 / 继续计时">
+          <div class="stat-label">
+            时长<span class="pause-badge" id="pause-badge">暂停中</span>
+          </div>
+          <div class="stat-value" id="timer">00:00</div>
+          <div class="pause-hint" id="pause-hint">点击暂停</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">轮次</div>
+          <div class="stat-value" id="turn-count">0</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <button class="toggle-btn" id="tts-btn" onclick="toggleTTS()">
+        <span id="tts-icon">🔇</span><span>语音播报</span>
+      </button>
+      <button class="toggle-btn" id="theme-btn" onclick="toggleTheme()">
+        <span id="theme-icon">🌙</span><span>深色模式</span>
+      </button>
+      <button class="toggle-btn" onclick="openSettings()">
+        <span>⚙️</span><span>模型配置</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- ── Main Chat ── -->
+  <main class="chat-main">
+
+    <!-- Welcome -->
+    <div class="welcome-screen" id="welcome-screen">
+      <div class="welcome-card">
+        <div class="welcome-icon">🎯</div>
+        <h1>Mock Interview Simulator</h1>
+        <p>AI 驱动的专业面试模拟，支持语音输入<br/>任意岗位 · 全程评分 · 实时反馈</p>
+        <button class="start-btn" onclick="startSession()">开始面试</button>
+        <div class="welcome-tags">
+          <span>🎙 语音输入</span><span>📊 逐题评分</span>
+          <span>💡 随时提示</span><span>📋 面试报告</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Messages -->
+    <div class="messages-wrap" id="messages-wrap">
+      <div class="messages" id="messages"></div>
+    </div>
+
+    <!-- Ended bar (shows after interview ends) -->
+    <div class="ended-bar" id="ended-bar">
+      <span>🏁 面试已结束</span>
+      <button class="ended-report-btn" id="rpt-gen-btn" onclick="openReport()">
+        📋 生成面试报告
+      </button>
+    </div>
+
+    <!-- Input -->
+    <div class="input-area" id="input-area">
+      <div class="voice-indicator" id="voice-indicator">
+        <span class="voice-dot"></span>正在聆听...
+      </div>
+      <div class="input-box">
+        <textarea id="input"
+          placeholder="输入回答，或点击麦克风使用语音（Shift+Enter 换行）"
+          rows="1"
+          onkeydown="handleKeydown(event)"
+          oninput="autoResize(this)"></textarea>
+        <div class="input-btns">
+          <button class="icon-btn" id="mic-btn" onclick="toggleRecording()" title="语音输入">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="23"/>
+              <line x1="8" y1="23" x2="16" y2="23"/>
+            </svg>
+          </button>
+          <button class="icon-btn send-btn" id="send-btn" onclick="handleSend()" title="发送">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="22" y1="2" x2="11" y2="13"/>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="input-hint">Enter 发送 · Shift+Enter 换行</div>
+    </div>
+  </main>
+</div>
+
+<!-- ── Report Panel ── -->
+<div class="overlay" id="report-overlay">
+  <div class="report-panel">
+    <div class="report-header">
+      <div class="report-hd-left">
+        <span>📋</span><h2>面试报告</h2>
+      </div>
+      <div class="report-hd-right">
+        <button class="rpt-btn" id="rpt-dl-btn" onclick="downloadReport()">⬇ 下载 Word</button>
+        <button class="rpt-btn rpt-close" onclick="closeReport()">✕ 关闭</button>
+      </div>
+    </div>
+    <div class="report-body" id="report-body">
+      <div class="rpt-loading" id="rpt-loading">
+        <div class="rpt-spinner"></div>
+        <p>AI 正在生成报告，请稍候...</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Settings Panel ── -->
+<div class="overlay" id="settings-overlay">
+  <div class="settings-panel">
+    <div class="settings-header">
+      <h3>⚙️ 模型配置</h3>
+      <button class="settings-close" onclick="closeSettings()">✕</button>
+    </div>
+    <div class="settings-body">
+      <div class="preset-label">快速选择厂商</div>
+      <div class="presets">
+        <button class="preset-btn" onclick="applyPreset('deepseek')">DeepSeek</button>
+        <button class="preset-btn" onclick="applyPreset('qianwen')">千问</button>
+        <button class="preset-btn" onclick="applyPreset('zhipu')">智谱</button>
+        <button class="preset-btn" onclick="applyPreset('openai')">OpenAI</button>
+        <button class="preset-btn" onclick="applyPreset('moonshot')">Moonshot</button>
+        <button class="preset-btn" onclick="applyPreset('openrouter')">OpenRouter</button>
+      </div>
+      <div class="form-group">
+        <label>API Key</label>
+        <input type="password" id="cfg-key" placeholder="sk-..." autocomplete="off" />
+      </div>
+      <div class="form-group">
+        <label>Base URL</label>
+        <input type="text" id="cfg-url" placeholder="https://api.deepseek.com" />
+      </div>
+      <div class="form-group">
+        <label>模型名称</label>
+        <input type="text" id="cfg-model" placeholder="deepseek-chat" />
+      </div>
+      <div class="settings-note" id="settings-note"></div>
+      <div class="settings-actions">
+        <button class="settings-save" onclick="saveSettings()">保存配置</button>
+        <button class="settings-reset" onclick="resetSettings()">恢复默认</button>
+      </div>
+      <div class="settings-status" id="settings-status"></div>
+    </div>
+  </div>
+</div>
+
+<script src="marked.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
