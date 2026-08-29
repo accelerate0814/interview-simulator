@@ -37,41 +37,6 @@
       </div>
     </div>
 
-    <!-- Commands -->
-    <div class="sidebar-section">
-      <div class="section-label">快捷指令</div>
-      <div class="commands">
-        <button class="cmd-btn" onclick="sendCommand('hint')">
-          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 21.5h4"/><path d="M12 2.5a6.5 6.5 0 0 0-4 11.6c.6.5 1 1.2 1 2.4h6c0-1.2.4-1.9 1-2.4A6.5 6.5 0 0 0 12 2.5Z"/></svg>
-          提示
-        </button>
-        <button class="cmd-btn" onclick="sendCommand('skip')">
-          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 5 15 12 6 19"/><line x1="18" y1="5" x2="18" y2="19"/></svg>
-          跳过此题
-        </button>
-        <button class="cmd-btn" onclick="sendCommand('explain')">
-          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v4.5a1 1 0 0 0 1 1H19"/><path d="M18 21H6a1.5 1.5 0 0 1-1.5-1.5v-15A1.5 1.5 0 0 1 6 3h8l5.5 5.5V19.5A1.5 1.5 0 0 1 18 21Z"/><line x1="8.5" y1="13" x2="15.5" y2="13"/><line x1="8.5" y1="16.5" x2="13" y2="16.5"/></svg>
-          解析答案
-        </button>
-        <button class="cmd-btn" onclick="sendCommand('score')">
-          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="18" y1="20" x2="18" y2="9"/></svg>
-          当前得分
-        </button>
-        <button class="cmd-btn" onclick="sendCommand('harder')">
-          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 16.5 9 10.5 13 14.5 21 6.5"/><polyline points="15 6.5 21 6.5 21 12.5"/></svg>
-          加大难度
-        </button>
-        <button class="cmd-btn" onclick="sendCommand('easier')">
-          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 7.5 9 13.5 13 9.5 21 17.5"/><polyline points="15 17.5 21 17.5 21 11.5"/></svg>
-          降低难度
-        </button>
-        <button class="cmd-btn cmd-end" onclick="endInterview()">
-          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="21" x2="5" y2="4"/><path d="M5 4c3-1.6 6 1.6 9 0v9c-3 1.6-6-1.6-9 0"/></svg>
-          结束面试
-        </button>
-      </div>
-    </div>
-
     <!-- Stats -->
     <div class="sidebar-section">
       <div class="section-label">当前会话</div>
@@ -168,6 +133,36 @@
 
     <!-- Input -->
     <div class="input-area" id="input-area">
+      <div class="commands" id="commands">
+        <button class="cmd-btn" onclick="sendCommand('hint')">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 21.5h4"/><path d="M12 2.5a6.5 6.5 0 0 0-4 11.6c.6.5 1 1.2 1 2.4h6c0-1.2.4-1.9 1-2.4A6.5 6.5 0 0 0 12 2.5Z"/></svg>
+          提示
+        </button>
+        <button class="cmd-btn" onclick="sendCommand('skip')">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 5 15 12 6 19"/><line x1="18" y1="5" x2="18" y2="19"/></svg>
+          跳过此题
+        </button>
+        <button class="cmd-btn" onclick="sendCommand('explain')">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v4.5a1 1 0 0 0 1 1H19"/><path d="M18 21H6a1.5 1.5 0 0 1-1.5-1.5v-15A1.5 1.5 0 0 1 6 3h8l5.5 5.5V19.5A1.5 1.5 0 0 1 18 21Z"/><line x1="8.5" y1="13" x2="15.5" y2="13"/><line x1="8.5" y1="16.5" x2="13" y2="16.5"/></svg>
+          解析答案
+        </button>
+        <button class="cmd-btn" onclick="sendCommand('score')">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="18" y1="20" x2="18" y2="9"/></svg>
+          当前得分
+        </button>
+        <button class="cmd-btn" onclick="sendCommand('harder')">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 16.5 9 10.5 13 14.5 21 6.5"/><polyline points="15 6.5 21 6.5 21 12.5"/></svg>
+          加大难度
+        </button>
+        <button class="cmd-btn" onclick="sendCommand('easier')">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 7.5 9 13.5 13 9.5 21 17.5"/><polyline points="15 17.5 21 17.5 21 11.5"/></svg>
+          降低难度
+        </button>
+        <button class="cmd-btn cmd-end" onclick="endInterview()">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="21" x2="5" y2="4"/><path d="M5 4c3-1.6 6 1.6 9 0v9c-3 1.6-6-1.6-9 0"/></svg>
+          结束面试
+        </button>
+      </div>
       <div class="voice-indicator" id="voice-indicator">
         <span class="voice-dot"></span>正在聆听...
       </div>

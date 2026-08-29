@@ -76,6 +76,7 @@ font-family: "VT323", monospace;             /* 读数：计时 / 评分 / 轮�
 - **区块小标签**：JetBrains Mono，uppercase，`letter-spacing: .14em`，`color: var(--text-faint)`，可带 `::after` 发丝线或 `::before` 能量方块。
 - **图标**：内联线性 SVG（`stroke-width` 2，可加 `shape-rendering: crispEdges` 求硬），**禁止 emoji**。
 - **消息**：面试官发言 = `.message.assistant`，`::before` 出 `ROUND NN`，`.avatar::before` 出「面试官」，正文描边盒 + 左 `--border-bright` 竖条；你的发言右对齐 + 左 `--energy` 竖条 + `--bg-3` 底。
+- **指令条**（`.commands`，在 `#input-area` 内、输入框正上方）：胶囊按钮横向排列、`flex-wrap` 自动换行、宽度与输入框对齐（`max-width: 820px`）。中性 `--border-bright` 描边 + `--text-dim` 字，hover 转 `--energy`；`.cmd-end`（结束面试）保持 `--warn` 红描边区分。只在面试进行中出现（随 `#input-area` 显隐），欢迎/结束态不显示。快捷指令**不再放侧栏**——侧栏腾出的空间给历史记录。
 
 ## 文案语气
 
