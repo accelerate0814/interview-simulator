@@ -23,3 +23,7 @@ desktop.ini
 .idea/
 *.swp
 *.swo
+
+# Local design scratch (backups + verification screenshots)
+frontend/_backup_predesign/
+design/*.png

@@ -10,10 +10,13 @@ const S = {
   timerInterval:  null,
   turnCount:      0,
   interviewEnded: false,
+  endedAt:        null,   // timestamp the interview was ended — freezes the clock
   reportData:     null,
   isPaused:       false,
   pausedMs:       0,      // total milliseconds accumulated while paused
   pauseStart:     null,   // timestamp when current pause began
+  useResume:      false,  // this interview references the stored résumé
+  jdId:           null,   // this interview references this saved JD (id)
 };
 
 const $ = id => document.getElementById(id);
@@ -35,6 +38,104 @@ function loadCfg() {
 }
 function saveCfg(cfg) {
   localStorage.setItem('isim_llm_cfg', JSON.stringify(cfg));
+}
+
+/* ── Client identity (no login) ────────────────── */
+// A stable per-browser id so the backend can de-dup interview questions across
+// every session this user ever runs. Generated once, kept in localStorage.
+function clientId() {
+  let id = null;
+  try { id = localStorage.getItem('isim_client_id'); } catch (_) {}
+  if (!id) {
+    id = (window.crypto && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : 'c-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2);
+    try { localStorage.setItem('isim_client_id', id); } catch (_) {}
+  }
+  return id;
+}
+
+/* ── Active session persistence (survives reload / tab-discard) ── */
+const ACTIVE_KEY = 'isim_active_session';
+
+function persistSession() {
+  if (!S.sessionId || !S.sessionStart) { clearPersistedSession(); return; }
+  try {
+    localStorage.setItem(ACTIVE_KEY, JSON.stringify({
+      v: 1,
+      sessionId:      S.sessionId,
+      turnCount:      S.turnCount,
+      sessionStart:   S.sessionStart,
+      pausedMs:       S.pausedMs,
+      isPaused:       S.isPaused,
+      pauseStart:     S.pauseStart,
+      interviewEnded: S.interviewEnded,
+      endedAt:        S.endedAt,
+      useResume:      S.useResume,
+      jdId:           S.jdId,
+    }));
+  } catch (_) {}
+}
+
+function clearPersistedSession() {
+  try { localStorage.removeItem(ACTIVE_KEY); } catch (_) {}
+}
+
+async function restoreActiveSession() {
+  let saved;
+  try { saved = JSON.parse(localStorage.getItem(ACTIVE_KEY) || 'null'); } catch { saved = null; }
+  if (!saved || !saved.sessionId || !saved.sessionStart) return false;
+
+  let d;
+  try {
+    const r = await fetch(`/api/sessions/${saved.sessionId}/messages`);
+    if (!r.ok) { clearPersistedSession(); return false; }
+    d = await r.json();
+  } catch (_) { return false; } // network hiccup: keep the key, try again next load
+
+  S.messages       = d.messages;
+  S.sessionId      = saved.sessionId;
+  S.turnCount      = saved.turnCount ?? d.messages.filter(m => m.role === 'user').length;
+  S.sessionStart   = saved.sessionStart;
+  S.pausedMs       = saved.pausedMs   || 0;
+  S.isPaused       = !!saved.isPaused;
+  S.pauseStart     = saved.pauseStart || null;
+  S.interviewEnded = !!saved.interviewEnded;
+  S.endedAt        = saved.endedAt || null;
+  S.useResume      = !!saved.useResume;
+  S.jdId           = saved.jdId ?? null;
+
+  $('messages').innerHTML = '';
+  for (const m of d.messages) appendMsg(m.role, m.content, true);
+
+  $('welcome-screen').style.display = 'none';
+  $('messages-wrap').classList.add('visible');
+  $('turn-count').textContent = S.turnCount;
+
+  if (S.interviewEnded) {
+    $('ended-bar').classList.add('visible');
+  } else {
+    $('input-area').classList.add('visible');
+  }
+
+  if (S.isPaused) {
+    document.querySelector('.timer-card')?.classList.add('paused');
+    const hint = $('pause-hint'); if (hint) hint.textContent = '点击继续';
+  }
+
+  clearInterval(S.timerInterval);
+  if (!S.interviewEnded) S.timerInterval = setInterval(tickTimer, 1000);
+  tickTimer();
+
+  document.querySelectorAll('.session-item').forEach(el =>
+    el.classList.toggle('active', el.dataset.id === S.sessionId));
+  scrollBottom();
+
+  // Opening question was never persisted (sent hidden) — restart the intro on the same session
+  if (!d.messages.length && !S.interviewEnded) {
+    sendMessage('你好，请开始面试', { hidden: true });
+  }
+  return true;
 }
 
 /* ── Settings Panel ────────────────────────────── */
@@ -104,6 +205,154 @@ function resetSettings() {
   $('settings-status').textContent = '已恢复为服务器默认配置';
 }
 
+/* ── My Profile (résumé + JD) ──────────────────── */
+function openProfile() {
+  $('profile-overlay').classList.add('open');
+  $('resume-status').textContent = '';
+  $('jd-status').textContent = '';
+  loadResume();
+  loadJDs();
+}
+function closeProfile() { $('profile-overlay').classList.remove('open'); }
+
+async function loadResume() {
+  let d = {};
+  try { d = await (await fetch('/api/resume', { headers: { 'X-Client-Id': clientId() } })).json(); }
+  catch (_) {}
+  const el = $('resume-current');
+  if (d && d.filename) {
+    el.innerHTML = `
+      <div>
+        <div class="resume-name">${esc(d.filename)}</div>
+        <div class="resume-meta">${d.chars} 字${d.updated_at ? ' · ' + relTime(d.updated_at) : ''}</div>
+      </div>
+      <button class="resume-del" onclick="deleteResume()">删除</button>`;
+  } else {
+    el.innerHTML = '<span class="resume-empty">还没上传简历</span>';
+  }
+}
+
+async function uploadResume() {
+  const input = $('resume-file');
+  const file = input.files && input.files[0];
+  if (!file) return;
+  $('resume-status').style.color = 'var(--text-muted)';
+  $('resume-status').textContent = '正在解析…';
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const res = await fetch('/api/resume', {
+      method: 'POST', headers: { 'X-Client-Id': clientId() }, body: fd,
+    });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(d.detail || `HTTP ${res.status}`);
+    $('resume-status').style.color = 'var(--green)';
+    $('resume-status').textContent = `✓ 已保存（识别到 ${d.chars} 字）`;
+    loadResume();
+  } catch (e) {
+    $('resume-status').style.color = 'var(--danger)';
+    $('resume-status').textContent = `上传失败：${e.message}`;
+  } finally {
+    input.value = '';
+  }
+}
+
+async function deleteResume() {
+  try { await fetch('/api/resume', { method: 'DELETE', headers: { 'X-Client-Id': clientId() } }); }
+  catch (_) {}
+  $('resume-status').textContent = '';
+  loadResume();
+}
+
+async function loadJDs() {
+  let list = [];
+  try { list = await (await fetch('/api/jds', { headers: { 'X-Client-Id': clientId() } })).json(); }
+  catch (_) {}
+  const el = $('jd-list');
+  if (!Array.isArray(list) || !list.length) {
+    el.innerHTML = '<div class="jd-empty">还没有保存的 JD</div>';
+    return;
+  }
+  el.innerHTML = list.map(j => `
+    <div class="jd-item">
+      <div class="jd-item-head">
+        <div>
+          <div class="jd-item-title">${esc(j.title)}</div>
+          <div class="jd-item-meta">${relTime(j.created_at)}</div>
+        </div>
+        <button class="jd-item-del" onclick="deleteJD(${j.id})" title="删除">×</button>
+      </div>
+      <div class="jd-item-preview">${esc(j.jd_text)}</div>
+    </div>`).join('');
+}
+
+async function saveJD() {
+  const title = $('jd-title').value.trim();
+  const jd_text = $('jd-text').value.trim();
+  if (!jd_text) {
+    $('jd-status').style.color = 'var(--danger)';
+    $('jd-status').textContent = 'JD 内容还没填哦';
+    return;
+  }
+  try {
+    const res = await fetch('/api/jds', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Client-Id': clientId() },
+      body: JSON.stringify({ title, jd_text }),
+    });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(d.detail || `HTTP ${res.status}`);
+    $('jd-title').value = ''; $('jd-text').value = '';
+    $('jd-status').style.color = 'var(--green)';
+    $('jd-status').textContent = '✓ 已保存';
+    loadJDs();
+  } catch (e) {
+    $('jd-status').style.color = 'var(--danger)';
+    $('jd-status').textContent = `保存失败：${e.message}`;
+  }
+}
+
+async function deleteJD(id) {
+  try { await fetch(`/api/jds/${id}`, { method: 'DELETE', headers: { 'X-Client-Id': clientId() } }); }
+  catch (_) {}
+  loadJDs();
+}
+
+/* ── Start-interview confirmation card ─────────── */
+async function openStartConfirm() {
+  let resume = {}, jds = [];
+  try { resume = await (await fetch('/api/resume', { headers: { 'X-Client-Id': clientId() } })).json(); } catch (_) {}
+  try { jds    = await (await fetch('/api/jds',    { headers: { 'X-Client-Id': clientId() } })).json(); } catch (_) {}
+  if (!Array.isArray(jds)) jds = [];
+
+  const hasResume = !!(resume && resume.filename);
+  const cb = $('start-use-resume');
+  cb.checked = hasResume;
+  cb.disabled = !hasResume;
+  $('start-resume-name').textContent = hasResume
+    ? resume.filename
+    : '未上传简历（可在左下角「我的资料」里上传）';
+
+  $('start-jd').innerHTML = '<option value="">不使用 JD</option>' +
+    jds.map(j => `<option value="${j.id}">${esc(j.title)}</option>`).join('');
+
+  $('start-overlay').classList.add('open');
+}
+function closeStartConfirm() { $('start-overlay').classList.remove('open'); }
+
+function confirmStart(generic) {
+  if (generic) {
+    S.useResume = false;
+    S.jdId = null;
+  } else {
+    S.useResume = $('start-use-resume').checked;
+    const v = $('start-jd').value;
+    S.jdId = v ? Number(v) : null;
+  }
+  closeStartConfirm();
+  startSession();
+}
+
 /* ── Speech Recognition ────────────────────────── */
 let recognition = null, baseText = '';
 
@@ -161,27 +410,56 @@ function renderSessionList(sessions) {
     </div>`).join('');
 }
 
+let _loadSeq = 0;
+
 async function loadSession(id) {
   if (S.isStreaming) return;
+  const seq = ++_loadSeq;
   try {
     const d = await (await fetch(`/api/sessions/${id}/messages`)).json();
+    if (seq !== _loadSeq) return; // 已有更晚的切换，丢弃这次过期结果
     S.messages  = d.messages; S.sessionId = id;
-    S.turnCount = d.messages.filter(m => m.role==='user').length;
-    S.sessionStart = Date.now(); S.interviewEnded = false;
+    S.turnCount = d.turn_count ?? d.messages.filter(m => m.role==='user').length;
+    S.interviewEnded = false;
+
+    // Timer = the session's accumulated duration, not "time since I clicked it".
+    // If this is the still-active session, keep its live clock from localStorage;
+    // otherwise resume from the duration stored on the server at the last turn.
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(ACTIVE_KEY) || 'null'); } catch (_) {}
+    if (saved && saved.sessionId === id && saved.sessionStart) {
+      S.sessionStart = saved.sessionStart;
+      S.pausedMs     = saved.pausedMs   || 0;
+      S.isPaused     = !!saved.isPaused;
+      S.pauseStart   = saved.pauseStart || null;
+      S.useResume    = !!saved.useResume;
+      S.jdId         = saved.jdId ?? null;
+      S.interviewEnded = !!saved.interviewEnded;
+      S.endedAt      = saved.endedAt || null;
+    } else {
+      S.sessionStart = Date.now() - (d.duration_s || 0) * 1000;
+      S.pausedMs = 0; S.isPaused = false; S.pauseStart = null;
+      S.useResume = false; S.jdId = null;
+      S.endedAt = null;
+    }
+    document.querySelector('.timer-card')?.classList.toggle('paused', S.isPaused);
+    { const h = $('pause-hint'); if (h) h.textContent = S.isPaused ? '点击继续' : '点击暂停'; }
 
     $('messages').innerHTML = '';
     for (const m of d.messages) appendMsg(m.role, m.content, true);
 
     $('welcome-screen').style.display = 'none';
     $('messages-wrap').classList.add('visible');
-    $('input-area').classList.add('visible');
-    $('ended-bar').classList.remove('visible');
+    $('input-area').classList.toggle('visible', !S.interviewEnded);
+    $('ended-bar').classList.toggle('visible', S.interviewEnded);
     $('turn-count').textContent = S.turnCount;
 
     clearInterval(S.timerInterval);
-    S.timerInterval = setInterval(tickTimer, 1000);
+    if (!S.interviewEnded) S.timerInterval = setInterval(tickTimer, 1000);
+    tickTimer();
 
     document.querySelectorAll('.session-item').forEach(el => el.classList.toggle('active', el.dataset.id===id));
+    persistSession();
     scrollBottom();
   } catch (e) { console.error(e); }
 }
@@ -195,7 +473,8 @@ async function delSession(id, event) {
 
 async function saveTurn(userContent, assistantContent) {
   if (!S.sessionId) return;
-  const elapsed = S.sessionStart ? Math.floor((Date.now()-S.sessionStart)/1000) : 0;
+  const now = S.endedAt || (S.isPaused && S.pauseStart ? S.pauseStart : Date.now());
+  const elapsed = S.sessionStart ? Math.max(0, Math.floor((now-S.sessionStart-S.pausedMs)/1000)) : 0;
   const isFirst = S.turnCount === 1;
   try {
     await fetch('/api/sessions/save-turn', {
@@ -206,6 +485,7 @@ async function saveTurn(userContent, assistantContent) {
         duration_s: elapsed, title: isFirst ? userContent.slice(0,50) : null,
       }),
     });
+    persistSession();
     if (isFirst || S.turnCount % 3 === 0) await loadSessions();
   } catch (_) {}
 }
@@ -217,17 +497,20 @@ async function startSession() {
   $('messages-wrap').classList.add('visible');
   $('input-area').classList.add('visible');
   $('ended-bar').classList.remove('visible');
-  S.messages = []; S.turnCount = 0; S.sessionStart = Date.now(); S.interviewEnded = false;
+  S.messages = []; S.turnCount = 0; S.sessionStart = Date.now(); S.interviewEnded = false; S.endedAt = null;
   clearInterval(S.timerInterval);
   S.timerInterval = setInterval(tickTimer, 1000);
   $('timer').textContent = '00:00'; $('turn-count').textContent = '0';
+  persistSession();
   await loadSessions();
   sendMessage('你好，请开始面试', { hidden: true });
 }
 
 function newSession() {
   clearInterval(S.timerInterval);
-  Object.assign(S, { messages:[], sessionId:null, turnCount:0, sessionStart:null, isStreaming:false, interviewEnded:false, reportData:null, isPaused:false, pausedMs:0, pauseStart:null });
+  _loadSeq++; // 取消任何进行中的历史加载，避免旧请求覆盖新会话
+  clearPersistedSession();
+  Object.assign(S, { messages:[], sessionId:null, turnCount:0, sessionStart:null, isStreaming:false, interviewEnded:false, endedAt:null, reportData:null, isPaused:false, pausedMs:0, pauseStart:null, useResume:false, jdId:null });
   document.querySelector('.timer-card')?.classList.remove('paused');
   const hint = $('pause-hint'); if (hint) hint.textContent = '点击暂停';
   $('messages').innerHTML = ''; $('timer').textContent = '00:00'; $('turn-count').textContent = '0';
@@ -239,14 +522,30 @@ function newSession() {
   document.querySelectorAll('.session-item').forEach(el => el.classList.remove('active'));
 }
 
-function endInterview() {
+// Freeze the clock the instant the interview ends — don't keep counting while
+// the closing scorecard is still generating.
+function markEnded() {
+  if (S.interviewEnded) return;
   S.interviewEnded = true;
+  S.endedAt = S.isPaused && S.pauseStart ? S.pauseStart : Date.now();
+  clearInterval(S.timerInterval); S.timerInterval = null;
+  document.querySelector('.timer-card')?.classList.remove('paused');
+  tickTimer();
+  persistSession();
+}
+
+function endInterview() {
+  markEnded();
   sendCommand('end');
 }
 
 function tickTimer() {
-  if (!S.sessionStart || S.isPaused) return;
-  const s = Math.floor((Date.now() - S.sessionStart - S.pausedMs) / 1000);
+  if (!S.sessionStart) return;
+  // Freeze the clock: at end time if the interview is over, else at the pause
+  // moment if paused, else live.
+  const now = S.endedAt ? S.endedAt
+            : (S.isPaused && S.pauseStart ? S.pauseStart : Date.now());
+  const s = Math.max(0, Math.floor((now - S.sessionStart - S.pausedMs) / 1000));
   $('timer').textContent = String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
 }
 
@@ -265,6 +564,7 @@ function togglePause() {
     card.classList.remove('paused');
     hint.textContent = '点击暂停';
   }
+  persistSession();
 }
 
 /* ── Input ─────────────────────────────────────── */
@@ -287,8 +587,9 @@ async function sendMessage(text, opts = {}) {
     appendMsg('user', text);
     S.turnCount++;
     $('turn-count').textContent = S.turnCount;
-    // detect 'end' typed manually
-    if (text.trim().toLowerCase() === 'end') S.interviewEnded = true;
+    // detect 'end' typed manually (also freezes the clock)
+    if (text.trim().toLowerCase() === 'end') markEnded();
+    persistSession();
   }
 
   S.messages.push({ role:'user', content:text });
@@ -297,11 +598,12 @@ async function sendMessage(text, opts = {}) {
   textEl.classList.add('streaming');
   setStreaming(true);
 
-  let full = '';
+  let full = '', gotDone = false;
   try {
     const res = await fetch('/api/chat', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: S.messages, llm: loadCfg() }),
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Client-Id': clientId() },
+      body: JSON.stringify({ messages: S.messages, llm: loadCfg(), session_id: S.sessionId, use_resume: !!S.useResume, jd_id: S.jdId }),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
@@ -317,14 +619,16 @@ async function sendMessage(text, opts = {}) {
         let data; try { data = JSON.parse(part.slice(6)); } catch { continue; }
         if (data.type==='text') { full += data.content; renderMsg(textEl, full, true); scrollBottom(); }
         else if (data.type==='done') {
+          gotDone = true;
           S.messages.push({ role:'assistant', content:full });
           if (S.ttsEnabled) speak(full);
-          if (!hidden && full) saveTurn(text, full);
+          if (!hidden && full) await saveTurn(text, full);
           // Show ended bar after interview ends
           if (S.interviewEnded) {
             $('ended-bar').classList.add('visible');
             $('input-area').classList.remove('visible');
           }
+          persistSession();
         }
         else if (data.type==='error') { renderMsg(textEl, `⚠️ 错误：${data.content}`, false); }
       }
@@ -333,6 +637,13 @@ async function sendMessage(text, opts = {}) {
   finally {
     textEl.classList.remove('streaming');
     if (full) renderMsg(textEl, full, false);
+    // Stream ended without a 'done' event (proxy cut it, server hiccup) but the
+    // answer did come through — treat it as complete so the turn still saves.
+    if (!gotDone && full) {
+      S.messages.push({ role:'assistant', content: full });
+      if (!hidden) { try { await saveTurn(text, full); } catch (_) {} }
+      persistSession();
+    }
     setStreaming(false);
     scrollBottom();
   }
@@ -371,12 +682,12 @@ function downloadReport() {
 
 function verdictColor(v) {
   v = (v || '').toLowerCase();
-  if (v.includes('strong hire'))   return '#27ae60';
-  if (v.includes('lean no hire'))  return '#e67e22';
-  if (v.includes('no hire'))       return '#e74c3c';
-  if (v.includes('lean hire'))     return '#f39c12';
-  if (v.includes('hire'))          return '#2980b9';
-  return '#7f8c8d';
+  if (v.includes('strong hire'))   return '#7FB88A';
+  if (v.includes('lean no hire'))  return '#E0A05A';
+  if (v.includes('no hire'))       return '#E8998D';
+  if (v.includes('lean hire'))     return '#F2B84B';
+  if (v.includes('hire'))          return '#6FAE8B';
+  return '#B3A398';
 }
 
 function renderReport(r) {
@@ -403,7 +714,7 @@ function renderReport(r) {
       </div>
     </div>
 
-    <div class="rpt-section-title">📝 题目详解</div>`;
+    <div class="rpt-section-title">题目详解</div>`;
 
   for (const [i, q] of (r.questions || []).entries()) {
     html += `
@@ -419,31 +730,31 @@ function renderReport(r) {
             <div class="q-section-content">${esc(q.user_answer || '未作答')}</div>
           </div>
           <div class="q-std-ans">
-            <div class="q-section-label">✅ 标准答案</div>
+            <div class="q-section-label">标准答案</div>
             <div class="q-section-content">${marked.parse(q.standard_answer || '')}</div>
           </div>
           ${q.feedback ? `
           <div class="q-feedback">
-            <div class="q-section-label">💬 评价</div>
+            <div class="q-section-label">评价</div>
             <div class="q-section-content">${esc(q.feedback)}</div>
           </div>` : ''}
         </div>
       </div>`;
   }
 
-  html += `<div class="rpt-section-title">📊 综合评价</div>
+  html += `<div class="rpt-section-title">综合评价</div>
     <div class="rpt-summary-grid">`;
 
   const sections = [
-    { key:'strengths',          icon:'✅', label:'主要优势' },
-    { key:'improvements',       icon:'⚠️', label:'改进方向' },
-    { key:'recommended_topics', icon:'📚', label:'建议学习' },
+    { key:'strengths',          label:'主要优势' },
+    { key:'improvements',       label:'改进方向' },
+    { key:'recommended_topics', label:'建议学习' },
   ];
   for (const s of sections) {
     const items = r[s.key] || [];
     if (!items.length) continue;
     html += `<div class="rpt-summary-card">
-      <h4>${s.icon} ${s.label}</h4>
+      <h4>${s.label}</h4>
       <ul>${items.map(it => `<li>${esc(it)}</li>`).join('')}</ul>
     </div>`;
   }
@@ -476,7 +787,6 @@ function setStreaming(val) { S.isStreaming=val; $('send-btn').disabled=val; $('i
 function toggleTTS() {
   S.ttsEnabled = !S.ttsEnabled;
   $('tts-btn').classList.toggle('active', S.ttsEnabled);
-  $('tts-icon').textContent = S.ttsEnabled ? '🔊' : '🔇';
 }
 function speak(text) {
   if (!window.speechSynthesis) return;
@@ -491,7 +801,6 @@ function toggleTheme() {
   S.darkMode = !S.darkMode;
   document.documentElement.setAttribute('data-theme', S.darkMode?'dark':'light');
   $('theme-btn').classList.toggle('active', S.darkMode);
-  $('theme-icon').textContent = S.darkMode ? '☀️' : '🌙';
 }
 
 /* ── Utils ─────────────────────────────────────── */
@@ -507,10 +816,17 @@ function esc(s) {
 }
 
 /* ── Init ──────────────────────────────────────── */
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   setupSpeech();
-  loadSessions();
+  await loadSessions();
+  await restoreActiveSession();
+  // Re-sync the timer immediately when the tab regains focus (background tabs
+  // throttle setInterval, and some browsers discard/reload the tab entirely).
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) tickTimer(); });
+  window.addEventListener('focus', tickTimer);
   // Close overlays on backdrop click
   $('report-overlay').addEventListener('click', e => { if(e.target===$('report-overlay')) closeReport(); });
   $('settings-overlay').addEventListener('click', e => { if(e.target===$('settings-overlay')) closeSettings(); });
+  $('profile-overlay').addEventListener('click', e => { if(e.target===$('profile-overlay')) closeProfile(); });
+  $('start-overlay').addEventListener('click', e => { if(e.target===$('start-overlay')) closeStartConfirm(); });
 });
