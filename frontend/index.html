@@ -6,7 +6,7 @@
   <title>Interview Simulator</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=VT323&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -100,10 +100,10 @@
       </button>
       <button class="toggle-btn" id="theme-btn" onclick="toggleTheme()">
         <span id="theme-icon" style="display:contents">
-          <svg class="ic ic-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13.5A8 8 0 1 1 10.5 4a6.5 6.5 0 0 0 9.5 9.5Z"/></svg>
-          <svg class="ic ic-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="3" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="21"/><line x1="3" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="21" y2="12"/><line x1="5.5" y1="5.5" x2="7" y2="7"/><line x1="17" y1="17" x2="18.5" y2="18.5"/><line x1="18.5" y1="5.5" x2="17" y2="7"/><line x1="7" y1="17" x2="5.5" y2="18.5"/></svg>
+          <svg class="ic ic-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="3" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="21"/><line x1="3" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="21" y2="12"/><line x1="5.5" y1="5.5" x2="7" y2="7"/><line x1="17" y1="17" x2="18.5" y2="18.5"/><line x1="18.5" y1="5.5" x2="17" y2="7"/><line x1="7" y1="17" x2="5.5" y2="18.5"/></svg>
+          <svg class="ic ic-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13.5A8 8 0 1 1 10.5 4a6.5 6.5 0 0 0 9.5 9.5Z"/></svg>
         </span>
-        <span>深色模式</span>
+        <span>浅色模式</span>
       </button>
       <button class="toggle-btn" onclick="openProfile()">
         <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5.5 20.5a6.5 6.5 0 0 1 13 0"/></svg>
@@ -126,15 +126,28 @@
     <!-- Welcome -->
     <div class="welcome-screen" id="welcome-screen">
       <div class="welcome-card">
-        <div class="welcome-overline">模拟面试</div>
-        <h1>认真准备一场面试，<br/>用不紧张的方式</h1>
-        <p>告诉我你面的岗位和级别，我们逐题练习、即时反馈；结束后生成一份带标准答案与评分的完整报告。</p>
-        <button class="start-btn" onclick="openStartConfirm()">开始面试</button>
-        <div class="welcome-tags">
-          <span><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a2.5 2.5 0 0 0-2.5 2.5v5a2.5 2.5 0 0 0 5 0v-5A2.5 2.5 0 0 0 12 3Z"/><path d="M6 11a6 6 0 0 0 12 0"/><line x1="12" y1="17" x2="12" y2="21"/></svg>语音作答</span>
-          <span><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 12.5 9 17.5 20 6.5"/></svg>逐题评分</span>
-          <span><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 21.5h4"/><path d="M12 2.5a6.5 6.5 0 0 0-4 11.6c.6.5 1 1.2 1 2.4h6c0-1.2.4-1.9 1-2.4A6.5 6.5 0 0 0 12 2.5Z"/></svg>随时提示</span>
-          <span><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4.5" width="12" height="16" rx="1.8"/><path d="M9.5 4.5V3.5h5v1"/><line x1="9" y1="10" x2="15" y2="10"/><line x1="9" y1="13.5" x2="15" y2="13.5"/><line x1="9" y1="17" x2="12.5" y2="17"/></svg>面试报告</span>
+        <div class="welcome-main">
+          <div class="welcome-overline">模拟面试</div>
+          <h1>认真准备一场面试，<br/>用不紧张的方式</h1>
+          <p>告诉我你面的岗位和级别，我们逐题练习、即时反馈；结束后生成一份带标准答案与评分的完整报告。</p>
+          <button class="start-btn" onclick="openStartConfirm()">开始面试</button>
+          <div class="welcome-tags">
+            <span>语音作答</span>
+            <span>逐题评分</span>
+            <span>随时提示</span>
+            <span>面试报告</span>
+          </div>
+        </div>
+        <div class="level-path" aria-hidden="true">
+          <span class="lp-label">关卡路线</span>
+          <span class="lp-node lp-node--start"></span>
+          <span class="lp-link"></span>
+          <span class="lp-node"></span>
+          <span class="lp-link"></span>
+          <span class="lp-node"></span>
+          <span class="lp-link"></span>
+          <span class="lp-node"></span>
+          <span class="lp-start-tag">START</span>
         </div>
       </div>
     </div>

@@ -42,3 +42,29 @@ Skill：huashu-design
 form 推导：这是一个「个人面试题档案」——不是 hero，是管理面。视觉母题＝「编目过的索引卡」：每条题带出处（来源文件 / 公司岗位 / 类别 tag），让它像整理过的笔记而不是一堆文本。
 
 落地：复用 `.settings-panel` / `.overlay` 外壳 + 现有线性 SVG 图标 + 暖色 token；新增 `.kb-*` 类。虚线上传区、带真实计数的类别筛选 chip、题目卡（题干 + dot 分隔的出处 meta 行 + hover 出删除）、诚实空状态、分页。无 emoji 图标、无编造数据。
+
+---
+
+## 换方向：方向 A「像素关卡 / 关卡化进阶练习」（2026-08-29）
+
+用户觉得暖调教练风「还能再改」，要求用 huashu-design 出三个方向对比。按三方向硬门：
+并行跑三套逻辑，各出一版真实 HTML 初稿（存 `design/huashu-3dir/`）：
+
+- **A · 秒数轮盘 →「像素游戏横版叙事」**：磷光屏绿 `#4fd67f` + 橙红 `#ff6a45`、arcade 近黑底、硬边、
+  VT323 读数、生硬底阴影按钮、ROUND 回合编号、复盘 =「STAGE CLEAR 结算画面」。
+  字体 Space Grotesk + Manrope + JetBrains Mono + VT323。
+- B · 现实参照 → Things 3（冷静蓝 + Inter + 发丝线 + 问答手稿骨架）
+- C · 最佳设计师 → 原研哉 + Rams（墨靛 + Fraunces + 大留白 + 卷宗式评估书）
+
+**用户选：方向 A。** 且明确要求：**文案沿用现线上界面原文，不用 copywriting 改写版**
+（欢迎页保留「认真准备一场面试，用不紧张的方式」+「告诉我你面的岗位和级别，我们逐题练习、
+即时反馈；结束后生成一份带标准答案与评分的完整报告。」，侧栏/按钮/复盘等全部原文）。
+
+落地约束：
+- `frontend/style.css` 全量重写为方向 A 系统；`frontend/index.html` 仅换字体 link、
+  欢迎页加 `.level-path` 装饰、welcome-tags 去图标留文字、主题按钮改「浅色模式」+ 图标顺序。
+- `frontend/app.js` 只改两处：`verdictColor` 配色改成 A 的绿/橙、`toggleTheme` 一行
+  （默认深色 arcade，切换到浅色变体）；所有文案字符串保持原样（含 `✓` / `⚠️`）。
+- app.js / index.html 依赖的所有 id / class 全部保留。
+- 签名：聊天列顶部虚线能量轨（`:has()` 跟随会话状态）+ 每条面试官发言前 `ROUND NN`（CSS counter）。
+- 落地规范见 `skills/DESIGN.md`（已同步）。

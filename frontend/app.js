@@ -804,12 +804,12 @@ function downloadReport() {
 
 function verdictColor(v) {
   v = (v || '').toLowerCase();
-  if (v.includes('strong hire'))   return '#7FB88A';
-  if (v.includes('lean no hire'))  return '#E0A05A';
-  if (v.includes('no hire'))       return '#E8998D';
-  if (v.includes('lean hire'))     return '#F2B84B';
-  if (v.includes('hire'))          return '#6FAE8B';
-  return '#B3A398';
+  if (v.includes('strong hire'))   return '#3F9E63';
+  if (v.includes('lean no hire'))  return '#D9542C';
+  if (v.includes('no hire'))       return '#D9542C';
+  if (v.includes('lean hire'))     return '#3F9E63';
+  if (v.includes('hire'))          return '#3F9E63';
+  return '#8A9A8C';
 }
 
 function renderReport(r) {
@@ -921,7 +921,8 @@ function speak(text) {
 /* ── Theme ─────────────────────────────────────── */
 function toggleTheme() {
   S.darkMode = !S.darkMode;
-  document.documentElement.setAttribute('data-theme', S.darkMode?'dark':'light');
+  // default (no attr) = dark arcade; toggle flips to a light arcade variant
+  document.documentElement.setAttribute('data-theme', S.darkMode ? 'light' : 'dark');
   $('theme-btn').classList.toggle('active', S.darkMode);
 }
 
