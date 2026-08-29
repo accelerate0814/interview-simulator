@@ -42,3 +42,13 @@ Skill：huashu-design
 form 推导：这是一个「个人面试题档案」——不是 hero，是管理面。视觉母题＝「编目过的索引卡」：每条题带出处（来源文件 / 公司岗位 / 类别 tag），让它像整理过的笔记而不是一堆文本。
 
 落地：复用 `.settings-panel` / `.overlay` 外壳 + 现有线性 SVG 图标 + 暖色 token；新增 `.kb-*` 类。虚线上传区、带真实计数的类别筛选 chip、题目卡（题干 + dot 分隔的出处 meta 行 + hover 出删除）、诚实空状态、分页。无 emoji 图标、无编造数据。
+
+---
+
+## ⚠️ 本文件已被取代（2026-08-29）
+
+用户要求「全新方向，推倒重来」，跑 copywriting → ui-ux-pro-max → imagegen-frontend-web → frontend-design → hallmark 五步流水线。
+上面的「Warm Editorial Coach」（赤陶 + Newsreader + 米白）被整体弃用 —— 它正好落在 frontend-design 点名的三大 AI 套路之一。
+
+新方向：**「The Booth / 录音棚」** —— 蓝墨 + 琥珀信号灯、Fraunces / IBM Plex Sans / IBM Plex Mono、`:has()` 状态条签名。
+完整推导与逐屏规范见 **`design/redesign-2026-08-29/BRIEF.md`**；落地规范见 **`skills/DESIGN.md`**（已同步更新）。
