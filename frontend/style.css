@@ -150,6 +150,12 @@ button { cursor: pointer; background: none; border: none; }
 }
 .session-item:hover { border-color: var(--border-bright); }
 .session-item.active { border-color: var(--energy); }
+.session-item.ended { border-color: var(--energy-deep); }
+/* 已通关标记：街机式绿色 VT323 小牌 */
+.session-tag {
+  font-family: "VT323", monospace; font-size: 15px; line-height: 1;
+  letter-spacing: .02em; color: var(--energy); text-transform: uppercase;
+}
 .session-title { font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 16px; }
 .session-meta { font-family: "JetBrains Mono", monospace; font-size: 11px; letter-spacing: .04em; color: var(--text-faint); }
 .session-del {

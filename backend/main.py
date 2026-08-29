@@ -171,6 +171,7 @@ async def init_db():
                 turn_count  INTEGER NOT NULL DEFAULT 0,
                 duration_s  INTEGER NOT NULL DEFAULT 0,
                 report_json TEXT,
+                ended       INTEGER NOT NULL DEFAULT 0,
                 created_at  TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
                 updated_at  TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
             )
@@ -253,6 +254,7 @@ async def init_db():
         # keep NULL (embedding is backfilled lazily / left empty — that's fine).
         for stmt in (
             "ALTER TABLE sessions ADD COLUMN report_json TEXT",
+            "ALTER TABLE sessions ADD COLUMN ended INTEGER NOT NULL DEFAULT 0",
             "ALTER TABLE asked_questions ADD COLUMN embedding TEXT",
             "ALTER TABLE asked_questions ADD COLUMN source TEXT",
         ):
@@ -803,7 +805,7 @@ async def list_sessions():
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
-            "SELECT id, title, turn_count, duration_s, created_at FROM sessions "
+            "SELECT id, title, turn_count, duration_s, ended, created_at FROM sessions "
             "ORDER BY updated_at DESC LIMIT 60"
         ) as cur:
             rows = await cur.fetchall()
@@ -815,7 +817,7 @@ async def get_session_messages(sid: str):
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         async with db.execute(
-            "SELECT turn_count, duration_s FROM sessions WHERE id=?", (sid,)
+            "SELECT turn_count, duration_s, ended FROM sessions WHERE id=?", (sid,)
         ) as cur:
             meta = await cur.fetchone()
             if not meta:
@@ -828,6 +830,7 @@ async def get_session_messages(sid: str):
         "messages": [dict(r) for r in rows],
         "turn_count": meta["turn_count"],
         "duration_s": meta["duration_s"],
+        "ended": meta["ended"],
     }
 
 
@@ -854,6 +857,20 @@ async def save_turn(data: TurnSave):
                 "updated_at=datetime('now','localtime') WHERE id=?",
                 (data.turn_count, data.duration_s, data.session_id),
             )
+        await db.commit()
+    return {"ok": True}
+
+
+@app.post("/api/sessions/{sid}/end")
+async def end_session(sid: str):
+    """Mark an interview as finished (candidate sent `end` / clicked 结束面试).
+    The frontend calls this the moment the interview ends, so the sidebar can
+    show 已通关 and a reload / session-switch restores the ended state."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "UPDATE sessions SET ended=1, updated_at=datetime('now','localtime') WHERE id=?",
+            (sid,),
+        )
         await db.commit()
     return {"ok": True}
 
@@ -901,10 +918,11 @@ async def generate_report(sid: str, body: ReportRequest = None):
 
     report = json.loads(resp.choices[0].message.content)
 
-    # Persist so download doesn't need to regenerate
+    # Persist so download doesn't need to regenerate. Generating a report also
+    # means the interview is over — mark it ended in case `end` was never sent.
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
-            "UPDATE sessions SET report_json=? WHERE id=?",
+            "UPDATE sessions SET report_json=?, ended=1 WHERE id=?",
             (json.dumps(report, ensure_ascii=False), sid),
         )
         await db.commit()

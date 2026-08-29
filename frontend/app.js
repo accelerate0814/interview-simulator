@@ -525,7 +525,8 @@ function renderSessionList(sessions) {
   const el = $('session-list');
   if (!sessions.length) { el.innerHTML = '<div class="session-empty">暂无历史记录</div>'; return; }
   el.innerHTML = sessions.map(s => `
-    <div class="session-item ${s.id===S.sessionId?'active':''}" data-id="${s.id}" onclick="loadSession('${s.id}')">
+    <div class="session-item ${s.ended?'ended':''} ${s.id===S.sessionId?'active':''}" data-id="${s.id}" onclick="loadSession('${s.id}')">
+      ${s.ended ? '<div class="session-tag">已通关</div>' : ''}
       <div class="session-title">${esc(s.title)}</div>
       <div class="session-meta">${relTime(s.created_at)} · ${s.turn_count} 轮</div>
       <button class="session-del" onclick="delSession('${s.id}',event)" title="删除">×</button>
@@ -542,7 +543,7 @@ async function loadSession(id) {
     if (seq !== _loadSeq) return; // 已有更晚的切换，丢弃这次过期结果
     S.messages  = d.messages; S.sessionId = id;
     S.turnCount = d.turn_count ?? d.messages.filter(m => m.role==='user').length;
-    S.interviewEnded = false;
+    S.interviewEnded = !!d.ended;
 
     // Timer = the session's accumulated duration, not "time since I clicked it".
     // If this is the still-active session, keep its live clock from localStorage;
@@ -562,7 +563,7 @@ async function loadSession(id) {
       S.sessionStart = Date.now() - (d.duration_s || 0) * 1000;
       S.pausedMs = 0; S.isPaused = false; S.pauseStart = null;
       S.useResume = false; S.jdId = null;
-      S.endedAt = null;
+      S.endedAt = S.interviewEnded ? Date.now() : null;
     }
     document.querySelector('.timer-card')?.classList.toggle('paused', S.isPaused);
     { const h = $('pause-hint'); if (h) h.textContent = S.isPaused ? '点击继续' : '点击暂停'; }
@@ -644,8 +645,9 @@ function newSession() {
   document.querySelectorAll('.session-item').forEach(el => el.classList.remove('active'));
 }
 
-// Freeze the clock the instant the interview ends — don't keep counting while
-// the closing scorecard is still generating.
+// End the interview the instant `end` is sent — freeze the clock, collapse the
+// input (the closing scorecard still streams in as the last message, but the
+// candidate can't keep answering), and mark the session 已通关 server-side.
 function markEnded() {
   if (S.interviewEnded) return;
   S.interviewEnded = true;
@@ -653,6 +655,13 @@ function markEnded() {
   clearInterval(S.timerInterval); S.timerInterval = null;
   document.querySelector('.timer-card')?.classList.remove('paused');
   tickTimer();
+  $('input-area').classList.remove('visible');
+  $('ended-bar').classList.add('visible');
+  if (S.sessionId) {
+    fetch(`/api/sessions/${S.sessionId}/end`, { method: 'POST' })
+      .then(() => loadSessions())
+      .catch(() => {});
+  }
   persistSession();
 }
 
