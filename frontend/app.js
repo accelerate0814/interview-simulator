@@ -191,7 +191,7 @@ function saveSettings() {
   }
   saveCfg({ api_key: key, base_url: url, model });
   $('settings-status').style.color = 'var(--green)';
-  $('settings-status').textContent = '配置已保存';
+  $('settings-status').textContent = '✓ 配置已保存';
   setTimeout(closeSettings, 800);
 }
 
@@ -202,7 +202,7 @@ function resetSettings() {
   syncPresetBtns();
   $('settings-note').textContent = '';
   $('settings-status').style.color = 'var(--text-muted)';
-  $('settings-status').textContent = '已恢复成服务器默认';
+  $('settings-status').textContent = '已恢复为服务器默认配置';
 }
 
 /* ── My Profile (résumé + JD) ──────────────────── */
@@ -237,7 +237,7 @@ async function uploadResume() {
   const file = input.files && input.files[0];
   if (!file) return;
   $('resume-status').style.color = 'var(--text-muted)';
-  $('resume-status').textContent = '正在读简历';
+  $('resume-status').textContent = '正在解析…';
   const fd = new FormData();
   fd.append('file', file);
   try {
@@ -247,7 +247,7 @@ async function uploadResume() {
     const d = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(d.detail || `HTTP ${res.status}`);
     $('resume-status').style.color = 'var(--green)';
-    $('resume-status').textContent = `已保存，读到 ${d.chars} 字`;
+    $('resume-status').textContent = `✓ 已保存（识别到 ${d.chars} 字）`;
     loadResume();
   } catch (e) {
     $('resume-status').style.color = 'var(--danger)';
@@ -270,7 +270,7 @@ async function loadJDs() {
   catch (_) {}
   const el = $('jd-list');
   if (!Array.isArray(list) || !list.length) {
-    el.innerHTML = '<div class="jd-empty">还没存过 JD</div>';
+    el.innerHTML = '<div class="jd-empty">还没有保存的 JD</div>';
     return;
   }
   el.innerHTML = list.map(j => `
@@ -291,7 +291,7 @@ async function saveJD() {
   const jd_text = $('jd-text').value.trim();
   if (!jd_text) {
     $('jd-status').style.color = 'var(--danger)';
-    $('jd-status').textContent = '还没填 JD 内容';
+    $('jd-status').textContent = 'JD 内容还没填哦';
     return;
   }
   try {
@@ -304,7 +304,7 @@ async function saveJD() {
     if (!res.ok) throw new Error(d.detail || `HTTP ${res.status}`);
     $('jd-title').value = ''; $('jd-text').value = '';
     $('jd-status').style.color = 'var(--green)';
-    $('jd-status').textContent = '已保存';
+    $('jd-status').textContent = '✓ 已保存';
     loadJDs();
   } catch (e) {
     $('jd-status').style.color = 'var(--danger)';
@@ -331,7 +331,7 @@ async function openStartConfirm() {
   cb.disabled = !hasResume;
   $('start-resume-name').textContent = hasResume
     ? resume.filename
-    : '还没上传简历，可去左下「我的资料」传一份';
+    : '未上传简历（可在左下角「我的资料」里上传）';
 
   $('start-jd').innerHTML = '<option value="">不使用 JD</option>' +
     jds.map(j => `<option value="${j.id}">${esc(j.title)}</option>`).join('');
@@ -375,7 +375,7 @@ async function uploadKB() {
   const file = input.files && input.files[0];
   if (!file) return;
   $('kb-status').style.color = 'var(--text-muted)';
-  $('kb-status').textContent = '正在拆题';
+  $('kb-status').textContent = '正在解析并抽取题目…';
   const fd = new FormData();
   fd.append('file', file);
   const cfg = loadCfg();
@@ -386,10 +386,10 @@ async function uploadKB() {
     if (!res.ok) throw new Error(d.detail || `HTTP ${res.status}`);
     if (d.fallback) {
       $('kb-status').style.color = 'var(--warning)';
-      $('kb-status').textContent = '没能拆成单条，整篇先存成 1 条 —— 看看模型配置对不对';
+      $('kb-status').textContent = 'AI 没能拆出单条题目，已把整篇存为 1 条（检查下模型配置？）';
     } else {
       $('kb-status').style.color = 'var(--green)';
-      $('kb-status').textContent = `已导入 ${d.imported} 道题`;
+      $('kb-status').textContent = `✓ 成功导入 ${d.imported} 道题目`;
     }
     _kb.category = null; _kb.offset = 0;
     loadKB();
@@ -425,14 +425,14 @@ async function loadKB() {
   const lEl = $('kb-list');
   if (!d.items.length) {
     lEl.innerHTML = d.total === 0
-      ? '<div class="kb-empty">题库是空的。<br/>传一份你整理的面试笔记，会自动把里面的题拆出来存好。</div>'
-      : '<div class="kb-empty">这个类别下还没有题</div>';
+      ? '<div class="kb-empty">还没有导入题目。<br/>上传一份你整理的面试笔记，AI 会把里面的题目拆出来存进知识库。</div>'
+      : '<div class="kb-empty">这个类别下没有题目</div>';
   } else {
     lEl.innerHTML = d.items.map(it => {
       const raw = !it.category && it.question_text.length > 240;
       const meta = [];
       if (it.category) meta.push(`<span class="kb-item-tag">${esc(it.category)}</span>`);
-      if (raw) meta.push(`<span class="kb-item-tag">整篇</span>`);
+      if (raw) meta.push(`<span class="kb-item-tag">整篇兜底</span>`);
       if (it.company_or_role) meta.push(esc(it.company_or_role));
       if (it.source_file) meta.push(esc(it.source_file));
       const metaHtml = meta.join('<span class="kb-dot"></span>');
@@ -523,7 +523,7 @@ async function loadSessions() {
 
 function renderSessionList(sessions) {
   const el = $('session-list');
-  if (!sessions.length) { el.innerHTML = '<div class="session-empty">还没有练习记录</div>'; return; }
+  if (!sessions.length) { el.innerHTML = '<div class="session-empty">暂无历史记录</div>'; return; }
   el.innerHTML = sessions.map(s => `
     <div class="session-item ${s.id===S.sessionId?'active':''}" data-id="${s.id}" onclick="loadSession('${s.id}')">
       <div class="session-title">${esc(s.title)}</div>
@@ -752,10 +752,10 @@ async function sendMessage(text, opts = {}) {
           }
           persistSession();
         }
-        else if (data.type==='error') { renderMsg(textEl, `出错了：${data.content}`, false); }
+        else if (data.type==='error') { renderMsg(textEl, `⚠️ 错误：${data.content}`, false); }
       }
     }
-  } catch (err) { renderMsg(textEl, `连接失败：${err.message}`, false); }
+  } catch (err) { renderMsg(textEl, `⚠️ 连接失败：${err.message}`, false); }
   finally {
     textEl.classList.remove('streaming');
     if (full) renderMsg(textEl, full, false);
@@ -774,7 +774,7 @@ async function sendMessage(text, opts = {}) {
 /* ── Report ────────────────────────────────────── */
 async function openReport() {
   $('report-overlay').classList.add('open');
-  $('report-body').innerHTML = '<div class="rpt-loading" id="rpt-loading"><div class="rpt-spinner"></div><p>正在整理这场面试的复盘</p></div>';
+  $('report-body').innerHTML = '<div class="rpt-loading" id="rpt-loading"><div class="rpt-spinner"></div><p>AI 正在生成报告，请稍候...</p></div>';
   $('rpt-dl-btn').style.display = 'none';
   S.reportData = null;
 
@@ -791,7 +791,7 @@ async function openReport() {
     renderReport(S.reportData);
     $('rpt-dl-btn').style.display = '';
   } catch (e) {
-    $('report-body').innerHTML = `<div class="rpt-loading"><p style="color:var(--danger)">复盘没能生成：${e.message}</p></div>`;
+    $('report-body').innerHTML = `<div class="rpt-loading"><p style="color:var(--danger)">⚠️ 报告生成失败：${e.message}</p></div>`;
   }
 }
 
@@ -804,12 +804,12 @@ function downloadReport() {
 
 function verdictColor(v) {
   v = (v || '').toLowerCase();
-  if (v.includes('strong hire'))   return '#3C6E52';
-  if (v.includes('lean no hire'))  return '#C2702A';
-  if (v.includes('no hire'))       return '#A34B3C';
-  if (v.includes('lean hire'))     return '#5C8F6E';
-  if (v.includes('hire'))          return '#3C6E52';
-  return '#8E877A';
+  if (v.includes('strong hire'))   return '#7FB88A';
+  if (v.includes('lean no hire'))  return '#E0A05A';
+  if (v.includes('no hire'))       return '#E8998D';
+  if (v.includes('lean hire'))     return '#F2B84B';
+  if (v.includes('hire'))          return '#6FAE8B';
+  return '#B3A398';
 }
 
 function renderReport(r) {
@@ -819,11 +819,11 @@ function renderReport(r) {
   let html = `
     <div class="rpt-meta">
       <div class="rpt-meta-item">
-        <span class="rpt-meta-label">岗位</span>
+        <span class="rpt-meta-label">面试岗位</span>
         <span class="rpt-meta-value">${esc(r.role || '—')}</span>
       </div>
       <div class="rpt-meta-item">
-        <span class="rpt-meta-label">层级</span>
+        <span class="rpt-meta-label">经验层级</span>
         <span class="rpt-meta-value">${esc(r.level || '—')}</span>
       </div>
       <div class="rpt-meta-item">
@@ -831,12 +831,12 @@ function renderReport(r) {
         <span class="rpt-meta-value">${score}/10</span>
       </div>
       <div class="rpt-meta-item">
-        <span class="rpt-meta-label">结论</span>
+        <span class="rpt-meta-label">面试结论</span>
         <span class="verdict-badge" style="background:${vc}22;color:${vc}">${esc(r.verdict || '—')}</span>
       </div>
     </div>
 
-    <div class="rpt-section-title">逐题回顾</div>`;
+    <div class="rpt-section-title">题目详解</div>`;
 
   for (const [i, q] of (r.questions || []).entries()) {
     html += `
@@ -848,29 +848,29 @@ function renderReport(r) {
         </div>
         <div class="q-card-body">
           <div class="q-user-ans">
-            <div class="q-section-label">你的回答</div>
-            <div class="q-section-content">${esc(q.user_answer || '这题没答')}</div>
+            <div class="q-section-label">候选人回答</div>
+            <div class="q-section-content">${esc(q.user_answer || '未作答')}</div>
           </div>
           <div class="q-std-ans">
-            <div class="q-section-label">参考答案</div>
+            <div class="q-section-label">标准答案</div>
             <div class="q-section-content">${marked.parse(q.standard_answer || '')}</div>
           </div>
           ${q.feedback ? `
           <div class="q-feedback">
-            <div class="q-section-label">点评</div>
+            <div class="q-section-label">评价</div>
             <div class="q-section-content">${esc(q.feedback)}</div>
           </div>` : ''}
         </div>
       </div>`;
   }
 
-  html += `<div class="rpt-section-title">总体评价</div>
+  html += `<div class="rpt-section-title">综合评价</div>
     <div class="rpt-summary-grid">`;
 
   const sections = [
-    { key:'strengths',          label:'做得好的' },
-    { key:'improvements',       label:'可以更好的' },
-    { key:'recommended_topics', label:'建议补的' },
+    { key:'strengths',          label:'主要优势' },
+    { key:'improvements',       label:'改进方向' },
+    { key:'recommended_topics', label:'建议学习' },
   ];
   for (const s of sections) {
     const items = r[s.key] || [];
