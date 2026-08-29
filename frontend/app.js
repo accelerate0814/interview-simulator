@@ -353,6 +353,128 @@ function confirmStart(generic) {
   startSession();
 }
 
+/* ── Interview Knowledge Base ──────────────────── */
+const _kb = { category: null, offset: 0, limit: 20 };
+const _kbIcons = {
+  trash: '<path d="M5 7h14"/><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7"/><path d="M6.7 7l.8 11a1.5 1.5 0 0 0 1.5 1.4h6a1.5 1.5 0 0 0 1.5-1.4l.8-11"/>',
+  prev: '<polyline points="14 6 9 12 14 18"/>',
+  next: '<polyline points="10 6 15 12 10 18"/>',
+};
+const _kbIc = (p) => `<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+
+function openKB() {
+  $('kb-overlay').classList.add('open');
+  $('kb-status').textContent = '';
+  _kb.category = null; _kb.offset = 0;
+  loadKB();
+}
+function closeKB() { $('kb-overlay').classList.remove('open'); }
+
+async function uploadKB() {
+  const input = $('kb-file');
+  const file = input.files && input.files[0];
+  if (!file) return;
+  $('kb-status').style.color = 'var(--text-muted)';
+  $('kb-status').textContent = '正在解析并抽取题目…';
+  const fd = new FormData();
+  fd.append('file', file);
+  const cfg = loadCfg();
+  if (cfg) { fd.append('api_key', cfg.api_key || ''); fd.append('base_url', cfg.base_url || ''); fd.append('model', cfg.model || ''); }
+  try {
+    const res = await fetch('/api/knowledge-base/import', { method: 'POST', headers: { 'X-Client-Id': clientId() }, body: fd });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(d.detail || `HTTP ${res.status}`);
+    if (d.fallback) {
+      $('kb-status').style.color = 'var(--warning)';
+      $('kb-status').textContent = 'AI 没能拆出单条题目，已把整篇存为 1 条（检查下模型配置？）';
+    } else {
+      $('kb-status').style.color = 'var(--green)';
+      $('kb-status').textContent = `✓ 成功导入 ${d.imported} 道题目`;
+    }
+    _kb.category = null; _kb.offset = 0;
+    loadKB();
+  } catch (e) {
+    $('kb-status').style.color = 'var(--danger)';
+    $('kb-status').textContent = `导入失败：${e.message}`;
+  } finally {
+    input.value = '';
+  }
+}
+
+async function loadKB() {
+  const params = new URLSearchParams({ offset: _kb.offset, limit: _kb.limit });
+  if (_kb.category) params.set('category', _kb.category);
+  let d = { total: 0, items: [], categories: [] };
+  try { d = await (await fetch('/api/knowledge-base?' + params)).json(); } catch (_) {}
+
+  // filter chips
+  const fEl = $('kb-filter');
+  if (d.categories.length) {
+    fEl.hidden = false;
+    const grand = d.categories.reduce((s, c) => s + c.count, 0);
+    fEl.innerHTML =
+      `<button class="kb-chip ${!_kb.category ? 'active' : ''}" onclick="filterKB(null)">全部<span class="kb-chip-n">${grand}</span></button>` +
+      d.categories.map(c =>
+        `<button class="kb-chip ${_kb.category === c.category ? 'active' : ''}" onclick="filterKB('${encodeURIComponent(c.category)}')">${esc(c.category)}<span class="kb-chip-n">${c.count}</span></button>`
+      ).join('');
+  } else {
+    fEl.hidden = true; fEl.innerHTML = '';
+  }
+
+  // list
+  const lEl = $('kb-list');
+  if (!d.items.length) {
+    lEl.innerHTML = d.total === 0
+      ? '<div class="kb-empty">还没有导入题目。<br/>上传一份你整理的面试笔记，AI 会把里面的题目拆出来存进知识库。</div>'
+      : '<div class="kb-empty">这个类别下没有题目</div>';
+  } else {
+    lEl.innerHTML = d.items.map(it => {
+      const raw = !it.category && it.question_text.length > 240;
+      const meta = [];
+      if (it.category) meta.push(`<span class="kb-item-tag">${esc(it.category)}</span>`);
+      if (raw) meta.push(`<span class="kb-item-tag">整篇兜底</span>`);
+      if (it.company_or_role) meta.push(esc(it.company_or_role));
+      if (it.source_file) meta.push(esc(it.source_file));
+      const metaHtml = meta.join('<span class="kb-dot"></span>');
+      const q = raw ? esc(it.question_text.slice(0, 240)) + '…' : esc(it.question_text);
+      return `<div class="kb-item ${raw ? 'kb-item-raw' : ''}">
+        <div class="kb-item-q">${q}</div>
+        ${metaHtml ? `<div class="kb-item-meta">${metaHtml}</div>` : ''}
+        <button class="kb-item-del" onclick="deleteKBItem(${it.id})" title="删除">${_kbIc(_kbIcons.trash)}</button>
+      </div>`;
+    }).join('');
+  }
+
+  // pager
+  const pEl = $('kb-pager');
+  if (d.total > _kb.limit) {
+    pEl.hidden = false;
+    const page = Math.floor(_kb.offset / _kb.limit) + 1;
+    const pages = Math.ceil(d.total / _kb.limit);
+    pEl.innerHTML = `<span>共 ${d.total} 道 · 第 ${page} / ${pages} 页</span>
+      <span class="kb-pager-btns">
+        <button ${_kb.offset === 0 ? 'disabled' : ''} onclick="kbPage(-1)" title="上一页">${_kbIc(_kbIcons.prev)}</button>
+        <button ${page >= pages ? 'disabled' : ''} onclick="kbPage(1)" title="下一页">${_kbIc(_kbIcons.next)}</button>
+      </span>`;
+  } else {
+    pEl.hidden = true; pEl.innerHTML = '';
+  }
+}
+
+function filterKB(cat) {
+  _kb.category = cat ? decodeURIComponent(cat) : null;
+  _kb.offset = 0;
+  loadKB();
+}
+function kbPage(delta) {
+  _kb.offset = Math.max(0, _kb.offset + delta * _kb.limit);
+  loadKB();
+}
+async function deleteKBItem(id) {
+  try { await fetch(`/api/knowledge-base/${id}`, { method: 'DELETE' }); } catch (_) {}
+  loadKB();
+}
+
 /* ── Speech Recognition ────────────────────────── */
 let recognition = null, baseText = '';
 
@@ -829,4 +951,5 @@ document.addEventListener('DOMContentLoaded', async () => {
   $('settings-overlay').addEventListener('click', e => { if(e.target===$('settings-overlay')) closeSettings(); });
   $('profile-overlay').addEventListener('click', e => { if(e.target===$('profile-overlay')) closeProfile(); });
   $('start-overlay').addEventListener('click', e => { if(e.target===$('start-overlay')) closeStartConfirm(); });
+  $('kb-overlay').addEventListener('click', e => { if(e.target===$('kb-overlay')) closeKB(); });
 });

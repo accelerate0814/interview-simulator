@@ -2,6 +2,7 @@ import io
 import os
 import json
 import uuid
+import random
 import asyncio
 from datetime import datetime
 from pathlib import Path
@@ -12,7 +13,7 @@ import numpy as np
 import aiosqlite
 from openai import AsyncOpenAI
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Header, UploadFile, File
+from fastapi import FastAPI, HTTPException, Header, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -93,6 +94,27 @@ EXTRACT_PROMPT = """你是面试内容分析器。从下面这段“面试官”
 category 从下面选一个最接近的：算法、系统设计、编程语言/框架、数据库、网络、操作系统、项目经验、行为面试、案例分析、专业知识、其他。
 
 如果这段发言没有提出任何新的正式面试题，返回：{"questions":[]}"""
+
+# ── 面试知识库（用户导入的真实面试题）──────────────
+KB_MAX_IMPORT_CHARS = 20000          # cap the text handed to the extractor
+KB_STYLE_EXAMPLE_N = 5              # few-shot examples pulled for "style" turns
+# Per-turn branch weights for how the next question is produced. Tunable.
+KB_REPLAY_PROB = 0.20              # ask a real question from the bank verbatim
+KB_STYLE_PROB = 0.50              # generate a new question in the bank's style
+# remaining 0.30 -> free generation (existing behaviour, no block added)
+
+KB_EXTRACT_PROMPT = """你是面试题目结构化助手。用户给你一整篇他自己整理的面试笔记（markdown 或 word 转出的纯文本），里面记录了他真实面试遇到过的题目。请把其中的**面试题目**逐条拆出来。
+
+要求：
+- 一条题目一个对象，题目文本尽量保留原文表述，去掉“第1题”“Q3”之类的编号前缀
+- category：从下面选一个最接近的，识别不出就用 null —— 算法、系统设计、编程语言/框架、数据库、网络、操作系统、项目经验、行为面试、案例分析、专业知识、其他
+- company_or_role：如果笔记里能看出这条题目对应的公司或岗位（如“字节-后端”“腾讯 二面”），填进去；看不出就 null
+- 只提取真正的面试问题，跳过纯笔记、答案、心得、时间线
+
+只返回 JSON，不要任何多余文字：
+{"questions":[{"question":"题目完整文本","category":"类别或null","company_or_role":"公司/岗位或null"}]}
+
+如果整篇没有任何可识别的面试题，返回：{"questions":[]}"""
 
 # Persistent, cross-session memory of *who the candidate is* (name, target role,
 # level, years, stack, company, stated preferences). Re-derived after each turn
@@ -212,11 +234,27 @@ async def init_db():
         await db.execute(
             "CREATE INDEX IF NOT EXISTS idx_jd_client ON job_descriptions(client_id)"
         )
+        # 面试知识库：用户导入的真实面试题（全局，不按 client 分）。出题逻辑会
+        # 从这里原样重放或抽样做 few-shot 风格参考。
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS question_bank (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                question_text   TEXT    NOT NULL,
+                category        TEXT,
+                source_file     TEXT,
+                company_or_role TEXT,
+                created_at      TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+            )
+        """)
+        await db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_qbank_category ON question_bank(category)"
+        )
         # migrations: add columns when upgrading from an older schema. Old rows
         # keep NULL (embedding is backfilled lazily / left empty — that's fine).
         for stmt in (
             "ALTER TABLE sessions ADD COLUMN report_json TEXT",
             "ALTER TABLE asked_questions ADD COLUMN embedding TEXT",
+            "ALTER TABLE asked_questions ADD COLUMN source TEXT",
         ):
             try:
                 await db.execute(stmt)
@@ -922,18 +960,170 @@ def _run_detached(coro) -> None:
     task.add_done_callback(_bg_tasks.discard)
 
 
-async def _post_turn(client, model, client_id, session_id, assistant_text, messages) -> None:
+async def _post_turn(
+    client, model, client_id, session_id, assistant_text, messages, skip_extract=False
+) -> None:
     """Fire-and-forget after a turn is streamed: record the interviewer's new
     questions and refresh the candidate profile. Runs *after* the SSE stream has
-    already closed, so nothing here can delay or lose the client's turn save."""
-    try:
-        await record_asked_questions(client, model, client_id, session_id, assistant_text)
-    except Exception:
-        pass
+    already closed, so nothing here can delay or lose the client's turn save.
+
+    skip_extract: set on 'replay' turns — the asked question is already known and
+    was recorded synchronously, so there's nothing to extract."""
+    if not skip_extract:
+        try:
+            await record_asked_questions(client, model, client_id, session_id, assistant_text)
+        except Exception:
+            pass
     try:
         await update_client_profile(client, model, client_id, messages)
     except Exception:
         pass
+
+
+# ── 面试知识库 ───────────────────────────────────
+def _kb_extract_text(filename: str, raw: bytes) -> str:
+    """Plain text out of an uploaded knowledge-base file (.md / .docx / .txt)."""
+    ext = Path(filename or "").suffix.lower()
+    if ext in (".md", ".markdown", ".txt"):
+        return raw.decode("utf-8", errors="ignore").strip()
+    if ext == ".docx":
+        doc = Document(io.BytesIO(raw))
+        return "\n".join(p.text for p in doc.paragraphs).strip()
+    raise HTTPException(400, "只支持 .md 或 .docx 文件")
+
+
+async def _kb_count() -> int:
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute("SELECT COUNT(*) FROM question_bank") as cur:
+            return (await cur.fetchone())[0]
+
+
+async def _kb_pick_unasked(client_id: str) -> Optional[dict]:
+    """A random bank question this client has never been asked (by exact text)."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT id, question_text, category FROM question_bank "
+            "WHERE question_text NOT IN "
+            "  (SELECT question_text FROM asked_questions WHERE client_id = ?) "
+            "ORDER BY RANDOM() LIMIT 1",
+            (client_id,),
+        ) as cur:
+            row = await cur.fetchone()
+    return dict(row) if row else None
+
+
+async def _kb_style_examples(n: int = KB_STYLE_EXAMPLE_N) -> List[dict]:
+    """A handful of bank questions to few-shot the style branch. Prefers a single
+    category (picked at random from one that has enough rows) so the examples
+    hang together; falls back to a plain random sample."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT category FROM question_bank WHERE category IS NOT NULL "
+            "GROUP BY category HAVING COUNT(*) >= 3 ORDER BY RANDOM() LIMIT 1"
+        ) as cur:
+            cat_row = await cur.fetchone()
+        if cat_row:
+            async with db.execute(
+                "SELECT question_text, category FROM question_bank WHERE category = ? "
+                "ORDER BY RANDOM() LIMIT ?",
+                (cat_row["category"], n),
+            ) as cur:
+                rows = await cur.fetchall()
+        else:
+            async with db.execute(
+                "SELECT question_text, category FROM question_bank ORDER BY RANDOM() LIMIT ?",
+                (n,),
+            ) as cur:
+                rows = await cur.fetchall()
+    return [dict(r) for r in rows]
+
+
+async def build_question_bank_block(client_id: str, messages: List[Message]):
+    """Decide how the next interview question is produced and return
+    (prompt_block, replay_question_or_None).
+
+    Only kicks in once the interview proper has started (there's at least one
+    interviewer turn already) and only when the bank is non-empty — otherwise
+    returns ('', None) and the existing free-generation logic is untouched."""
+    if not any(m.role == "assistant" for m in messages):
+        return "", None
+    if await _kb_count() == 0:
+        return "", None
+
+    roll = random.random()
+
+    # a) 原题重放
+    if roll < KB_REPLAY_PROB:
+        q = await _kb_pick_unasked(client_id)
+        if q:
+            block = (
+                "\n\n---\n"
+                "## 🎯 本轮出题指令（最高优先级，必须严格执行）\n"
+                "先简短点评候选人上一题的回答，然后**一字不差地**向候选人提出下面这道题，"
+                "不要改写、不要合并、不要加编号前缀，把它作为本轮的正式面试题：\n\n"
+                f"「{q['question_text']}」\n"
+            )
+            return block, q["question_text"]
+        roll = KB_REPLAY_PROB  # nothing left to replay → fall into the style range
+
+    # b) 风格生成
+    if roll < KB_REPLAY_PROB + KB_STYLE_PROB:
+        examples = await _kb_style_examples()
+        if examples:
+            listed = "\n".join(
+                f"- 【{e['category'] or '未分类'}】{e['question_text']}" for e in examples
+            )
+            block = (
+                "\n\n---\n"
+                "## 本轮出题参考（候选人整理的真实面试题）\n"
+                "下面是候选人自己遇到过的真实面试题。请**模仿它们的提问风格、难度、"
+                "切入角度和考察点**，出**一道全新的**同类型问题——不要照抄、不要只换"
+                "数字或措辞，要覆盖示例里没问到的知识点：\n\n"
+                f"{listed}\n"
+            )
+            return block, None
+
+    # c) 自由生成 —— 不加任何 block
+    return "", None
+
+
+async def _embed_backfill(qid: int, text: str) -> None:
+    try:
+        vec = await embed_text(text)
+        if vec is None:
+            return
+        async with aiosqlite.connect(DB_PATH) as db:
+            await db.execute(
+                "UPDATE asked_questions SET embedding = ? WHERE id = ?", (json.dumps(vec), qid)
+            )
+            await db.commit()
+    except Exception:
+        pass
+
+
+async def record_replayed_question(client_id: str, session_id: Optional[str], question_text: str) -> None:
+    """Record a verbatim-replayed bank question into asked_questions, tagged so
+    it's distinguishable from LLM-generated ones. The INSERT is synchronous (the
+    turn must not repeat this question later); the embedding is backfilled off
+    the hot path."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT category FROM question_bank WHERE question_text = ? LIMIT 1",
+            (question_text,),
+        ) as cur:
+            row = await cur.fetchone()
+        category = row["category"] if row else None
+        cur = await db.execute(
+            "INSERT INTO asked_questions "
+            "(client_id, question_text, category, session_id, source) VALUES (?, ?, ?, ?, ?)",
+            (client_id, question_text, category, session_id, "knowledge_base"),
+        )
+        await db.commit()
+        qid = cur.lastrowid
+    _run_detached(_embed_backfill(qid, question_text))
 
 
 @app.post("/api/chat")
@@ -959,15 +1149,26 @@ async def chat(request: ChatRequest, x_client_id: Optional[str] = Header(default
     resume = await fetch_resume(x_client_id) if (x_client_id and request.use_resume) else {}
     jd = await fetch_jd(x_client_id, request.jd_id) if x_client_id else None
 
+    # Command turns (hint/skip/explain/...) don't introduce new questions.
+    record_new = bool(x_client_id) and not _is_command_turn(_last_user_text(request.messages))
+
+    # 4) Interview knowledge base: maybe replay a real question verbatim, or
+    #    few-shot the model with real questions to shape a new one. No-op when
+    #    the bank is empty or we roll "free generate".
+    kb_block, replay_q = ("", None)
+    if record_new:
+        kb_block, replay_q = await build_question_bank_block(x_client_id, request.messages)
+
     system_prompt = (
         SYSTEM_PROMPT
         + build_profile_block(profile)
         + build_jobfit_block(resume.get("resume_text", ""), jd)
         + build_dedup_block(asked, related)
+        + kb_block
     )
 
-    # Command turns (hint/skip/explain/...) don't introduce new questions.
-    record_new = bool(x_client_id) and not _is_command_turn(_last_user_text(request.messages))
+    if replay_q:
+        await record_replayed_question(x_client_id, request.session_id, replay_q)
 
     async def generate():
         full = ""
@@ -998,7 +1199,8 @@ async def chat(request: ChatRequest, x_client_id: Optional[str] = Header(default
             #    after the stream has closed.
             if record_new and full.strip():
                 _run_detached(_post_turn(
-                    client, model, x_client_id, request.session_id, full, request.messages
+                    client, model, x_client_id, request.session_id, full, request.messages,
+                    skip_extract=bool(replay_q),
                 ))
         except Exception as e:
             yield f"data: {json.dumps({'type':'error','content':str(e)}, ensure_ascii=False)}\n\n"
@@ -1179,6 +1381,118 @@ async def delete_jd(jd_id: int, x_client_id: Optional[str] = Header(default=None
             "DELETE FROM job_descriptions WHERE id = ? AND client_id = ?",
             (jd_id, x_client_id),
         )
+        await db.commit()
+    return {"ok": True, "deleted": cur.rowcount}
+
+
+# ── 面试知识库 ───────────────────────────────────
+@app.post("/api/knowledge-base/import")
+async def import_knowledge_base(
+    file: UploadFile = File(...),
+    api_key: Optional[str] = Form(None),
+    base_url: Optional[str] = Form(None),
+    model: Optional[str] = Form(None),
+):
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(400, "这个文件是空的")
+    text = _kb_extract_text(file.filename, raw)
+    if not text:
+        raise HTTPException(400, "没能从文件里读到文字")
+    text = text[:KB_MAX_IMPORT_CHARS]
+
+    cfg = LLMConfig(api_key=api_key, base_url=base_url, model=model) if (api_key and base_url and model) else None
+    client, model_name = make_client(cfg)
+
+    items: List[dict] = []
+    try:
+        resp = await client.chat.completions.create(
+            model=model_name,
+            max_tokens=4000,
+            messages=[
+                {"role": "system", "content": KB_EXTRACT_PROMPT},
+                {"role": "user", "content": text},
+            ],
+            response_format={"type": "json_object"},
+        )
+        data = json.loads(resp.choices[0].message.content)
+        items = data.get("questions") or []
+    except Exception:
+        items = []
+
+    rows: List[Tuple[str, Optional[str], Optional[str]]] = []
+    for it in items:
+        if not isinstance(it, dict):
+            continue
+        q = (it.get("question") or it.get("text") or "").strip()
+        if not q:
+            continue
+        cat = (it.get("category") or "").strip() or None
+        cor = (it.get("company_or_role") or "").strip() or None
+        rows.append((q, cat, cor))
+
+    fallback = not rows
+    async with aiosqlite.connect(DB_PATH) as db:
+        if rows:
+            for q, cat, cor in rows:
+                await db.execute(
+                    "INSERT INTO question_bank (question_text, category, source_file, company_or_role) "
+                    "VALUES (?, ?, ?, ?)",
+                    (q, cat, file.filename, cor),
+                )
+        else:
+            # Extraction failed — keep the whole file as one bucket row so the
+            # content isn't lost; it can still be inspected / deleted.
+            await db.execute(
+                "INSERT INTO question_bank (question_text, category, source_file, company_or_role) "
+                "VALUES (?, NULL, ?, NULL)",
+                (text, file.filename),
+            )
+        await db.commit()
+
+    return {"ok": True, "imported": len(rows) if rows else 1, "fallback": fallback, "source_file": file.filename}
+
+
+@app.get("/api/knowledge-base")
+async def list_knowledge_base(
+    category: Optional[str] = None, offset: int = 0, limit: int = 50
+):
+    limit = max(1, min(limit, 200))
+    offset = max(0, offset)
+    where, params = "", []
+    if category:
+        where = "WHERE category = ?"
+        params.append(category)
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            f"SELECT COUNT(*) FROM question_bank {where}", params
+        ) as cur:
+            total = (await cur.fetchone())[0]
+        async with db.execute(
+            f"SELECT id, question_text, category, source_file, company_or_role, created_at "
+            f"FROM question_bank {where} ORDER BY id DESC LIMIT ? OFFSET ?",
+            [*params, limit, offset],
+        ) as cur:
+            rows = await cur.fetchall()
+        async with db.execute(
+            "SELECT category, COUNT(*) n FROM question_bank "
+            "WHERE category IS NOT NULL GROUP BY category ORDER BY category"
+        ) as cur:
+            cats = [{"category": r[0], "count": r[1]} for r in await cur.fetchall()]
+    return {
+        "total": total,
+        "offset": offset,
+        "limit": limit,
+        "items": [dict(r) for r in rows],
+        "categories": cats,
+    }
+
+
+@app.delete("/api/knowledge-base/{item_id}")
+async def delete_knowledge_base(item_id: int):
+    async with aiosqlite.connect(DB_PATH) as db:
+        cur = await db.execute("DELETE FROM question_bank WHERE id = ?", (item_id,))
         await db.commit()
     return {"ok": True, "deleted": cur.rowcount}
 

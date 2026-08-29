@@ -613,6 +613,88 @@ button { font-family: var(--font); cursor: pointer; color: inherit; }
 }
 .start-close:hover { color: var(--ink-soft); }
 
+/* ── Interview Knowledge Base ──────────────────── */
+.kb-panel { width: 560px; }
+.kb-intro { font-size: 12.5px; color: var(--ink-soft); line-height: 1.7; }
+.kb-intro code {
+  font-family: var(--mono); font-size: 11.5px; background: var(--surface-sunken);
+  border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px;
+}
+
+.kb-drop {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  padding: 22px 16px; border: 1.5px dashed var(--line-strong); border-radius: var(--radius-md);
+  background: var(--surface-sunken); cursor: pointer; text-align: center;
+  transition: border-color .18s ease, background .18s ease;
+}
+.kb-drop:hover { border-color: var(--clay); background: var(--clay-wash); }
+.kb-drop .ic { width: 22px; height: 22px; color: var(--clay); margin-bottom: 2px; }
+.kb-drop-main { font-size: 13.5px; font-weight: 700; color: var(--ink); }
+.kb-drop-sub { font-size: 11.5px; color: var(--ink-faint); }
+
+/* category filter */
+.kb-filter { display: flex; flex-wrap: wrap; gap: 7px; }
+.kb-chip {
+  padding: 5px 12px; border: 1px solid var(--line-strong); border-radius: var(--radius-full);
+  background: var(--surface); color: var(--ink-soft);
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: background .15s ease, border-color .15s ease, color .15s ease;
+}
+.kb-chip:hover { background: var(--clay-wash); border-color: var(--clay); color: var(--clay); }
+.kb-chip.active { background: var(--clay-tint); border-color: var(--clay); color: var(--clay); font-weight: 700; }
+.kb-chip .kb-chip-n {
+  margin-left: 5px; font-size: 10.5px; font-weight: 700; opacity: .65;
+  font-variant-numeric: tabular-nums;
+}
+
+/* question list */
+.kb-list { display: flex; flex-direction: column; gap: 8px; min-height: 60px; }
+.kb-item {
+  position: relative; border: 1px solid var(--line); border-radius: var(--radius-md);
+  padding: 13px 40px 13px 15px; background: var(--surface); box-shadow: var(--shadow-sm);
+}
+.kb-item-q { font-size: 13.5px; line-height: 1.6; color: var(--ink); text-wrap: pretty; }
+.kb-item-meta {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  margin-top: 7px; font-size: 11px; color: var(--ink-faint);
+}
+.kb-item-tag {
+  font-weight: 700; color: var(--clay); background: var(--clay-tint);
+  border-radius: var(--radius-full); padding: 1px 8px; letter-spacing: .2px;
+}
+.kb-item-meta .kb-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--line-strong); }
+.kb-item-del {
+  position: absolute; top: 10px; right: 8px; width: 24px; height: 24px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: transparent; color: var(--ink-faint);
+  border-radius: var(--radius-sm); opacity: 0; transition: opacity .15s ease, background .15s ease, color .15s ease;
+}
+.kb-item:hover .kb-item-del { opacity: 1; }
+.kb-item-del .ic { width: 15px; height: 15px; }
+.kb-item-del:hover { background: var(--coral-warn-tint); color: var(--coral-warn); }
+.kb-item-raw { border-style: dashed; border-color: var(--amber); }
+.kb-item-raw .kb-item-tag { color: var(--amber); background: color-mix(in srgb, var(--amber) 14%, transparent); }
+
+.kb-empty {
+  font-size: 12.5px; color: var(--ink-faint); text-align: center;
+  padding: 28px 16px; line-height: 1.8;
+}
+
+/* pager */
+.kb-pager {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 12px; color: var(--ink-faint); padding-top: 2px;
+}
+.kb-pager-btns { display: flex; gap: 6px; }
+.kb-pager button {
+  display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm);
+  background: var(--surface); color: var(--ink-soft); transition: background .15s ease, border-color .15s ease;
+}
+.kb-pager button .ic { width: 14px; height: 14px; }
+.kb-pager button:hover:not(:disabled) { background: var(--clay-wash); border-color: var(--clay); color: var(--clay); }
+.kb-pager button:disabled { opacity: .4; cursor: not-allowed; }
+
 /* ── Responsive ────────────────────────────────── */
 @media (max-width: 760px) {
   .sidebar { display: none; }

@@ -34,3 +34,11 @@ Skill：huashu-design
 - `frontend/app.js` 依赖的所有 id / class（`.visible` `.open` `.active` `.streaming` `.paused` `.recording`、各 `getElementById`）全部保留，只换视觉。
 - 旧版已备份到 `frontend/_backup_predesign/`。
 - 涉及 app.js 的最小改动：主题/朗读按钮图标从「换 emoji 文本」改为「切换 SVG 显隐」；报告区文案去 emoji。
+
+## 迭代：面试知识库面板（2026-08-29，同方向迭代，不重新过三方向门）
+
+用户要求「用 huashu-design skill 设计，不用参考 DESIGN.md」。判定为 huashu-design「唯一豁免·已选定方向后的迭代」——Warm Editorial 系统已是既定方向，新面板只是同系统内加一个 overlay。
+
+form 推导：这是一个「个人面试题档案」——不是 hero，是管理面。视觉母题＝「编目过的索引卡」：每条题带出处（来源文件 / 公司岗位 / 类别 tag），让它像整理过的笔记而不是一堆文本。
+
+落地：复用 `.settings-panel` / `.overlay` 外壳 + 现有线性 SVG 图标 + 暖色 token；新增 `.kb-*` 类。虚线上传区、带真实计数的类别筛选 chip、题目卡（题干 + dot 分隔的出处 meta 行 + hover 出删除）、诚实空状态、分页。无 emoji 图标、无编造数据。

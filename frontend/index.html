@@ -109,6 +109,10 @@
         <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5.5 20.5a6.5 6.5 0 0 1 13 0"/></svg>
         <span>我的资料</span>
       </button>
+      <button class="toggle-btn" onclick="openKB()">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3.5" width="14" height="17" rx="1.5"/><line x1="5" y1="7.5" x2="8" y2="7.5"/><line x1="10" y1="8" x2="15.5" y2="8"/><line x1="10" y1="11.5" x2="15.5" y2="11.5"/><line x1="10" y1="15" x2="13" y2="15"/></svg>
+        <span>面试知识库</span>
+      </button>
       <button class="toggle-btn" onclick="openSettings()">
         <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><line x1="4" y1="8" x2="20" y2="8"/><line x1="4" y1="16" x2="20" y2="16"/><circle cx="9" cy="8" r="2.5"/><circle cx="15" cy="16" r="2.5"/></svg>
         <span>模型配置</span>
@@ -317,6 +321,33 @@
       <button class="settings-reset" onclick="confirmStart(true)">通用模式开始</button>
     </div>
     <button class="start-close" onclick="closeStartConfirm()">取消</button>
+  </div>
+</div>
+
+<!-- ── Interview Knowledge Base ── -->
+<div class="overlay" id="kb-overlay">
+  <div class="settings-panel kb-panel">
+    <div class="settings-header">
+      <h3>面试知识库</h3>
+      <button class="settings-close" onclick="closeKB()">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>
+      </button>
+    </div>
+    <div class="settings-body">
+      <p class="kb-intro">导入你自己整理的真实面试题（<code>.md</code> / <code>.docx</code>）。面试时会参考这些题的风格出新题，偶尔原样重问一道。</p>
+
+      <label class="kb-drop">
+        <input type="file" id="kb-file" accept=".md,.markdown,.docx" onchange="uploadKB()" hidden />
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4 4 0 0 1-.5-8 6 6 0 0 1 11.5 1.5 3.5 3.5 0 0 1-.4 6.9"/><polyline points="9.5 13 12 10.5 14.5 13"/><line x1="12" y1="10.5" x2="12" y2="17.5"/></svg>
+        <span class="kb-drop-main">选择文件上传</span>
+        <span class="kb-drop-sub">AI 会自动把整篇拆成一条条题目</span>
+      </label>
+      <div class="settings-status" id="kb-status"></div>
+
+      <div class="kb-filter" id="kb-filter" hidden></div>
+      <div class="kb-list" id="kb-list"></div>
+      <div class="kb-pager" id="kb-pager" hidden></div>
+    </div>
   </div>
 </div>
 
