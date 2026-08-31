@@ -475,39 +475,115 @@ async function deleteKBItem(id) {
   loadKB();
 }
 
-/* ── Speech Recognition ────────────────────────── */
-let recognition = null, baseText = '';
+/* ── Voice input (live: PCM → WS → 火山 SAUC 流式 → 实时字幕) ──────── */
+// The mic captures 16k mono PCM (pcm-worklet.js), streamed over the
+// /api/asr-stream WebSocket. The backend relays it to 火山引擎 SAUC's streaming
+// endpoint and pushes interim transcripts straight back, so text appears while
+// you talk; on stop it runs the final text through the chat LLM for term fixes.
+const INPUT_PLACEHOLDER = '输入回答，或点击麦克风使用语音（Shift+Enter 换行）';
+let _asrWS = null, _asrCtx = null, _asrNode = null, _asrSrc = null, _asrStream = null, _asrPrefix = '';
 
-function setupSpeech() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { $('mic-btn').style.display = 'none'; return; }
-  recognition = new SR();
-  recognition.lang = 'zh-CN'; recognition.continuous = true; recognition.interimResults = true;
-  recognition.onresult = e => {
-    let fin = '', tmp = '';
-    for (let i = 0; i < e.results.length; i++) {
-      if (e.results[i].isFinal) fin += e.results[i][0].transcript;
-      else                      tmp += e.results[i][0].transcript;
-    }
-    $('input').value = baseText + fin + tmp;
-    autoResize($('input'));
-  };
-  recognition.onerror = e => { if (e.error !== 'no-speech') stopRecording(); };
-  recognition.onend   = () => { if (S.isRecording) { try { recognition.start(); } catch (_) {} } };
+async function setupSpeech() {
+  const micBtn = $('mic-btn');
+  const clientOK = navigator.mediaDevices?.getUserMedia && window.AudioWorkletNode && window.WebSocket;
+  if (!clientOK) { micBtn.style.display = 'none'; return; }
+  // Hide the mic unless the backend has 火山引擎 ASR creds configured.
+  let ok = false;
+  try { ok = !!(await (await fetch('/api/health')).json()).transcribe; } catch (_) {}
+  micBtn.style.display = ok ? '' : 'none';
+}
+
+function voiceHint(text) { $('voice-indicator').innerHTML = `<span class="voice-dot"></span>${text}`; }
+function flashPlaceholder(msg) {
+  const el = $('input');
+  el.placeholder = msg;
+  setTimeout(() => { el.placeholder = INPUT_PLACEHOLDER; }, 3000);
 }
 
 function toggleRecording() { S.isRecording ? stopRecording() : startRecording(); }
-function startRecording() {
-  if (!recognition) return;
-  baseText = $('input').value;
-  if (baseText && !baseText.endsWith(' ')) baseText += ' ';
-  try { recognition.start(); S.isRecording = true; $('mic-btn').classList.add('recording'); $('voice-indicator').classList.add('active'); } catch (_) {}
+
+async function startRecording() {
+  if (S.isRecording || S.isStreaming || $('mic-btn').classList.contains('transcribing')) return;
+  try {
+    _asrStream = await navigator.mediaDevices.getUserMedia({
+      audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true },
+    });
+  } catch (_) {
+    flashPlaceholder('麦克风不可用，请检查浏览器权限');
+    return;
+  }
+
+  const input = $('input');
+  _asrPrefix = (input.value && !input.value.endsWith(' ')) ? input.value + ' ' : input.value;
+
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  _asrWS = new WebSocket(`${proto}://${location.host}/api/asr-stream`);
+
+  _asrWS.onopen = async () => {
+    const cfg = loadCfg();  // chat model for the final cleanup pass
+    _asrWS.send(JSON.stringify({ llm: (cfg && cfg.api_key) ? cfg : null }));
+    try {
+      await startPCM();
+    } catch (e) {
+      console.error(e); flashPlaceholder('无法启动录音'); cleanupASR(); return;
+    }
+    S.isRecording = true;
+    $('mic-btn').classList.add('recording');
+    voiceHint('正在聆听…');
+    $('voice-indicator').classList.add('active');
+  };
+  _asrWS.onmessage = (e) => {
+    let d; try { d = JSON.parse(e.data); } catch { return; }
+    if ((d.type === 'partial' || d.type === 'final' || d.type === 'corrected') && typeof d.text === 'string') {
+      input.value = _asrPrefix + d.text;
+      autoResize(input);
+    }
+    if (d.type === 'final') voiceHint('润色中…');
+    if (d.type === 'corrected') { input.focus(); cleanupASR(); }
+    if (d.type === 'error') { flashPlaceholder(`识别失败：${d.message || ''}`); cleanupASR(); }
+  };
+  _asrWS.onerror = () => { flashPlaceholder('识别连接中断'); cleanupASR(); };
+  _asrWS.onclose = () => {
+    if (S.isRecording || $('mic-btn').classList.contains('transcribing')) cleanupASR();
+  };
 }
+
 function stopRecording() {
-  if (!recognition) return;
+  if (!S.isRecording) return;
   S.isRecording = false;
-  try { recognition.stop(); } catch (_) {}
   $('mic-btn').classList.remove('recording');
+  $('mic-btn').classList.add('transcribing');
+  voiceHint('识别中…');
+  stopPCM();  // stop capturing; keep the WS open for final + corrected
+  try { if (_asrWS && _asrWS.readyState === 1) _asrWS.send(JSON.stringify({ done: true })); } catch (_) {}
+}
+
+async function startPCM() {
+  _asrCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (_asrCtx.state === 'suspended') await _asrCtx.resume();
+  await _asrCtx.audioWorklet.addModule('/pcm-worklet.js');
+  _asrSrc = _asrCtx.createMediaStreamSource(_asrStream);
+  _asrNode = new AudioWorkletNode(_asrCtx, 'pcm-downsampler');
+  _asrNode.port.onmessage = (e) => {
+    if (_asrWS && _asrWS.readyState === 1) _asrWS.send(e.data);
+  };
+  _asrSrc.connect(_asrNode);  // no destination — we don't want playback
+}
+
+function stopPCM() {
+  try { _asrStream && _asrStream.getTracks().forEach(t => t.stop()); } catch (_) {}
+  try { _asrSrc && _asrSrc.disconnect(); } catch (_) {}
+  try { _asrNode && _asrNode.disconnect(); } catch (_) {}
+  try { _asrCtx && _asrCtx.state !== 'closed' && _asrCtx.close(); } catch (_) {}
+  _asrStream = _asrSrc = _asrNode = _asrCtx = null;
+}
+
+function cleanupASR() {
+  stopPCM();
+  try { _asrWS && _asrWS.close(); } catch (_) {}
+  _asrWS = null;
+  S.isRecording = false;
+  $('mic-btn').classList.remove('recording', 'transcribing');
   $('voice-indicator').classList.remove('active');
 }
 

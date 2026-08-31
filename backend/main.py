@@ -1,9 +1,11 @@
 import io
 import os
+import sys
 import json
 import uuid
 import random
 import asyncio
+import contextlib
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional, Tuple
@@ -13,7 +15,7 @@ import numpy as np
 import aiosqlite
 from openai import AsyncOpenAI
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, Header, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, Header, UploadFile, File, Form, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -159,6 +161,32 @@ _embed_client = (
     else None
 )
 EMBEDDINGS_ENABLED = _embed_client is not None
+
+# ── Voice input: 火山引擎 流式语音识别大模型 SAUC ───────────────────
+# The browser captures 16k mono PCM and streams it over the /api/asr-stream
+# WebSocket; the backend relays it to Volcengine's SAUC streaming endpoint and
+# pushes the interim transcripts straight back, then runs the final text through
+# the chat LLM once for homophone / term correction. No ffmpeg needed (PCM in).
+# Configure in backend/.env — without creds the WS refuses and the mic hides.
+#   新版控制台鉴权:  VOLC_ASR_API_KEY               (X-Api-Key)
+#   老版控制台鉴权:  VOLC_ASR_APP_KEY + VOLC_ASR_ACCESS_KEY
+#   resource_id 以服务「调用示例」为准（前缀可能是 volc.seedasr.* 或 volc.bigasr.*）
+_volc_asr_api_key = os.getenv("VOLC_ASR_API_KEY", "")
+_volc_asr_app_key = os.getenv("VOLC_ASR_APP_KEY", "")
+_volc_asr_access_key = os.getenv("VOLC_ASR_ACCESS_KEY", "")
+_volc_asr_resource_id = os.getenv("VOLC_ASR_RESOURCE_ID", "volc.seedasr.sauc.duration")
+_volc_asr_ws_url = os.getenv(
+    "VOLC_ASR_WS_URL", "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel"
+)
+VOLC_ASR_ENABLED = bool(_volc_asr_api_key or (_volc_asr_app_key and _volc_asr_access_key))
+
+# The raw transcript is passed through the normal chat LLM once to fix homophone
+# / term errors. Kept deliberately strict: fix, don't rewrite or answer.
+TRANSCRIBE_FIX_PROMPT = (
+    "这是一段语音转文字的结果，可能有同音字错误，"
+    "请结合技术面试的语境修正（尤其是技术术语、专有名词、英文缩写），"
+    "不要改写语气、不要补全或回答内容。只返回修正后的文本，不要加引号或任何解释。"
+)
 
 
 # ── DB ───────────────────────────────────────────
@@ -791,7 +819,11 @@ def build_docx(report: dict) -> io.BytesIO:
 # ── Health ───────────────────────────────────────
 @app.get("/api/health")
 async def health():
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "embeddings": EMBEDDINGS_ENABLED,
+        "transcribe": VOLC_ASR_ENABLED,
+    }
 
 
 # ── Sessions ─────────────────────────────────────
@@ -1235,6 +1267,184 @@ async def chat(request: ChatRequest, x_client_id: Optional[str] = Header(default
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no", "Connection": "keep-alive"},
     )
+
+
+# ── Voice input: 火山引擎 SAUC 流式识别（WebSocket 直转）──
+_sauc_proto = None  # lazily imported vendored module (pulls in aiohttp)
+
+
+def _load_sauc():
+    """Import ../sauc_python/protocol.py on first use — we only need its binary
+    frame codec (RequestBuilder / ResponseParser), not the file-oriented client.
+    Mirrors the lazy pdfplumber import elsewhere (keeps aiohttp off startup)."""
+    global _sauc_proto
+    if _sauc_proto is None:
+        sauc_dir = str(Path(__file__).parent.parent / "sauc_python")
+        if sauc_dir not in sys.path:
+            sys.path.insert(0, sauc_dir)
+        import protocol as _p  # noqa: E402
+        _sauc_proto = _p
+    return _sauc_proto
+
+
+async def _correct_transcript(raw_text: str, cfg: Optional[LLMConfig]) -> str:
+    """Best-effort homophone / term fix via the chat LLM. Falls back to the raw
+    text on any failure (no key, provider error, empty reply)."""
+    if not raw_text:
+        return raw_text
+    client, model_name = make_client(cfg)
+    try:
+        resp = await client.chat.completions.create(
+            model=model_name,
+            max_tokens=1200,
+            messages=[
+                {"role": "system", "content": TRANSCRIBE_FIX_PROMPT},
+                {"role": "user", "content": raw_text},
+            ],
+        )
+        return (resp.choices[0].message.content or "").strip() or raw_text
+    except Exception:
+        return raw_text
+
+
+@app.websocket("/api/asr-stream")
+async def asr_stream(ws: WebSocket):
+    """Live voice input. The browser captures 16k mono PCM and streams it in over
+    this socket; we relay it to 火山引擎 SAUC's streaming endpoint and push the
+    interim transcripts straight back:
+
+        <- {"type":"partial","text":"..."}      (many, while you speak)
+        <- {"type":"final","text":"..."}        (raw transcript, on stop)
+        <- {"type":"corrected","text":"..."}    (after the LLM cleanup pass)
+        <- {"type":"error","message":"..."}
+
+    The browser sends one JSON text frame first ({"llm": {...}|null} — the chat
+    model for the cleanup pass), then raw PCM binary frames, then {"done":true}.
+    """
+    await ws.accept()
+    if not VOLC_ASR_ENABLED:
+        await ws.send_json({"type": "error", "message": "语音转写未配置：请在 backend/.env 设置 VOLC_ASR_API_KEY"})
+        await ws.close()
+        return
+
+    p = _load_sauc()
+    import aiohttp
+
+    # 1) first frame: the chat-model config for the correction pass
+    cfg: Optional[LLMConfig] = None
+    try:
+        hello = await ws.receive_json()
+        raw_llm = (hello or {}).get("llm")
+        if raw_llm and raw_llm.get("api_key") and raw_llm.get("base_url") and raw_llm.get("model"):
+            cfg = LLMConfig(**raw_llm)
+    except Exception:
+        pass
+
+    config = p.Config(
+        api_key=_volc_asr_api_key,
+        app_key=_volc_asr_app_key,
+        access_key=_volc_asr_access_key,
+        resource_id=_volc_asr_resource_id,
+    )
+    payload = {
+        "user": {"uid": "interview-simulator"},
+        "audio": {"format": "pcm", "codec": "raw", "rate": 16000, "bits": 16, "channel": 1},
+        "request": {
+            "model_name": "bigmodel",
+            "enable_itn": True,
+            "enable_punc": True,
+            "enable_ddc": True,
+            "show_utterances": False,
+        },
+    }
+
+    latest = ""
+    vc = None
+    session = aiohttp.ClientSession()
+    try:
+        try:
+            vc = await session.ws_connect(
+                _volc_asr_ws_url, headers=p.RequestBuilder.new_auth_headers(config)
+            )
+        except Exception as e:
+            await ws.send_json({"type": "error", "message": f"连接火山识别失败：{e}"})
+            return
+
+        seq = 1
+        await vc.send_bytes(p.RequestBuilder.new_full_client_request(seq, payload))
+
+        async def uplink():
+            nonlocal seq
+            try:
+                while True:
+                    msg = await ws.receive()
+                    if msg.get("type") == "websocket.disconnect":
+                        break
+                    chunk = msg.get("bytes")
+                    if chunk:
+                        seq += 1
+                        await vc.send_bytes(
+                            p.RequestBuilder.new_audio_only_request(seq, chunk, is_last=False)
+                        )
+                        continue
+                    text = msg.get("text")
+                    if text:
+                        try:
+                            if json.loads(text).get("done"):
+                                break
+                        except Exception:
+                            pass
+            finally:
+                with contextlib.suppress(Exception):
+                    seq += 1
+                    await vc.send_bytes(
+                        p.RequestBuilder.new_audio_only_request(seq, b"", is_last=True)
+                    )
+
+        async def downlink():
+            nonlocal latest
+            async for m in vc:
+                if m.type != aiohttp.WSMsgType.BINARY:
+                    if m.type in (aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR):
+                        break
+                    continue
+                resp = p.ResponseParser.parse_response(m.data)
+                if resp.code != 0:
+                    with contextlib.suppress(Exception):
+                        await ws.send_json({"type": "error", "message": f"火山识别错误 code={resp.code}"})
+                    return
+                text = ((resp.payload_msg or {}).get("result") or {}).get("text") or ""
+                if text and text != latest:
+                    latest = text
+                    with contextlib.suppress(Exception):
+                        await ws.send_json({"type": "partial", "text": text})
+                if resp.is_last_package:
+                    return
+
+        up = asyncio.create_task(uplink())
+        try:
+            await asyncio.wait_for(downlink(), timeout=20)
+        except asyncio.TimeoutError:
+            pass
+        finally:
+            up.cancel()
+            with contextlib.suppress(Exception):
+                await up
+
+        final_raw = latest.strip()
+        with contextlib.suppress(Exception):
+            await ws.send_json({"type": "final", "text": final_raw})
+        corrected = await _correct_transcript(final_raw, cfg)
+        with contextlib.suppress(Exception):
+            await ws.send_json({"type": "corrected", "text": corrected})
+    finally:
+        with contextlib.suppress(Exception):
+            if vc is not None:
+                await vc.close()
+        with contextlib.suppress(Exception):
+            await session.close()
+        with contextlib.suppress(Exception):
+            await ws.close()
 
 
 # ── Asked-questions inspection / reset (handy for testing) ──

@@ -369,6 +369,7 @@ button { cursor: pointer; background: none; border: none; }
 .icon-btn:active { transform: translateY(4px); box-shadow: 0 0 0 var(--ledge); }
 .icon-btn svg { width: 18px; height: 18px; }
 .icon-btn.recording { border-color: var(--warn); color: var(--warn); box-shadow: 0 4px 0 var(--warn-deep); }
+.icon-btn.transcribing { border-color: var(--accent); color: var(--accent); pointer-events: none; animation: vpulse .8s steps(2) infinite; }
 .send-btn { background: var(--energy); border-color: var(--energy); color: var(--energy-ink); box-shadow: 0 4px 0 var(--energy-deep); }
 .send-btn:active { box-shadow: 0 0 0 var(--energy-deep); }
 .send-btn:disabled { background: var(--bg-3); border-color: var(--border); color: var(--text-faint); box-shadow: 0 4px 0 var(--track); cursor: not-allowed; }
