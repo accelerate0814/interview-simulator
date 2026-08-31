@@ -581,6 +581,10 @@ def build_profile_block(profile: str) -> str:
         f"{p}\n\n"
         "请在本场面试中自然地运用上述信息（例如用候选人的姓名称呼对方），"
         "不要再重复询问这里已经写明的内容。\n"
+        "注意：这些是**历史场次**攒下的记忆，可能已过时。"
+        "如果与上面「本场面试的定向出题材料」里的简历 / JD 有冲突"
+        "（例如项目经历、技术栈对不上），**一律以本场简历 / JD 为准**，"
+        "不要提问这里写了但简历里没有的项目。\n"
     )
 
 
@@ -1177,10 +1181,13 @@ async def chat(request: ChatRequest, x_client_id: Optional[str] = Header(default
     if record_new:
         kb_block, replay_q = await build_question_bank_block(x_client_id, request.messages)
 
+    # Order matters: the résumé/JD block goes *before* the cross-session profile
+    # so a freshly uploaded résumé takes precedence over stale remembered facts
+    # (see build_profile_block's "以本场简历 / JD 为准" note).
     system_prompt = (
         SYSTEM_PROMPT
-        + build_profile_block(profile)
         + build_jobfit_block(resume.get("resume_text", ""), jd)
+        + build_profile_block(profile)
         + build_dedup_block(asked, related)
         + kb_block
     )
@@ -1340,6 +1347,12 @@ async def upload_resume(
             "resume_filename = excluded.resume_filename, "
             "updated_at = datetime('now','localtime')",
             (x_client_id, text, file.filename),
+        )
+        # A new résumé means "get to know this candidate again": the LLM-maintained
+        # cross-session profile is merge-only and never drops a stale project, so
+        # wipe it here. It rebuilds from the next interview's turns.
+        await db.execute(
+            "DELETE FROM client_profile WHERE client_id = ?", (x_client_id,)
         )
         await db.commit()
     return {"ok": True, "filename": file.filename, "chars": len(text)}
