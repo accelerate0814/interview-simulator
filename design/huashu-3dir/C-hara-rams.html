@@ -1,0 +1,844 @@
+<!--
+  方向 C — 面试模拟练习 · 前端全站高保真初稿
+  ------------------------------------------------------------------
+  设计师 / 哲学：以原研哉（Kenya Hara）的「白 / 空」为主，融 Dieter Rams
+  的「诚实、少即是多」，版式结构取 Hoefler / Commercial Type 的
+  「把字体本身当主结构」。
+  一句话哲学：空不是空缺，是容器——留白把用户的注意力接住，让他只面对
+  「这一问、这一答」，装饰一律不许上场。
+
+  form（版式）来自内容的哪里：面试 =「一问一答的回合」+「结束后被记录、被打分」。
+  · 主区做成一份「问答手稿 / 卷宗」：面试官的问题是带页边编号的卷宗条目
+    （衬线、有权重、是被发问的一方），你的回答缩进其下（无衬线、平白口吻）；
+    一条发丝基线自上而下贯穿，像手稿的行线，右上角常驻页边码。
+  · 侧栏收成一列——器物般的克制，只有标签、读数和入口，没有一块多余底色。
+  · 欢迎首屏是「上场前的排练厅」：一个大字锚点 + 大面积留白降压。
+  · 复盘不是卡片墙，是一页有层级的「评估书」：meta 行 / 逐题回顾 / 总体评价，
+    靠发丝线分节，参考答案用极浅靛色底与你的回答区分。
+  · 设置浮层沿用同一套发丝线与等宽标签，功能可见、可恢复默认。
+
+  选色论证：主色是低饱和的「墨 / 靛」oklch(0.42 0.07 265)，chroma ≤ 0.08——
+  它是记录与批注的颜色（卷宗上的印与笔迹），沉稳、郑重、不施压；配暖白纸底
+  oklch(0.985) 与发丝灰分隔，刻意避开现版赤陶橙的「教练亲和感」，换成
+  「静、郑重、器物般精确」。
+
+  字体：display = Fraunces（罗马正体，opsz 高，SOFT/WONK 0，编辑体的郑重，绝不斜体）；
+  body / UI = IBM Plex Sans；标签 / 页边码 / 读数 = IBM Plex Mono。
+  单文件、内联 CSS、可 file:// 双击打开。深色模式随系统，另可用侧栏「深色模式」切换。
+  文案全部取自 SPEC，未编造任何统计 / 数字。
+-->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>方向 C · 静 / 郑重 / 器物般精确</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ---------- tokens ---------- */
+  :root{
+    --paper:        oklch(0.985 0.002 90);
+    --paper-sunk:   oklch(0.966 0.003 90);
+    --paper-panel:  oklch(0.992 0.002 90);
+    --ink:          oklch(0.25 0.02 262);
+    --ink-soft:     oklch(0.40 0.02 262);
+    --ink-faint:    oklch(0.445 0.015 262);
+    --hairline:     oklch(0.885 0.005 262);
+    --hairline-firm:oklch(0.80 0.006 262);
+    --accent:       oklch(0.42 0.07 265);
+    --accent-quiet: oklch(0.52 0.05 265);
+    --accent-weak:  oklch(0.955 0.014 265);
+    --on-accent:    oklch(0.99 0.002 90);
+    --terminal:     oklch(0.46 0.09 25);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:        oklch(0.195 0.010 265);
+      --paper-sunk:   oklch(0.165 0.010 265);
+      --paper-panel:  oklch(0.220 0.011 265);
+      --ink:          oklch(0.935 0.010 265);
+      --ink-soft:     oklch(0.760 0.012 265);
+      --ink-faint:    oklch(0.610 0.012 265);
+      --hairline:     oklch(0.320 0.012 265);
+      --hairline-firm:oklch(0.400 0.014 265);
+      --accent:       oklch(0.760 0.090 265);
+      --accent-quiet: oklch(0.680 0.070 265);
+      --accent-weak:  oklch(0.270 0.030 265);
+      --on-accent:    oklch(0.165 0.010 265);
+      --terminal:     oklch(0.720 0.110 28);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:        oklch(0.195 0.010 265);
+    --paper-sunk:   oklch(0.165 0.010 265);
+    --paper-panel:  oklch(0.220 0.011 265);
+    --ink:          oklch(0.935 0.010 265);
+    --ink-soft:     oklch(0.760 0.012 265);
+    --ink-faint:    oklch(0.610 0.012 265);
+    --hairline:     oklch(0.320 0.012 265);
+    --hairline-firm:oklch(0.400 0.014 265);
+    --accent:       oklch(0.760 0.090 265);
+    --accent-quiet: oklch(0.680 0.070 265);
+    --accent-weak:  oklch(0.270 0.030 265);
+    --on-accent:    oklch(0.165 0.010 265);
+    --terminal:     oklch(0.720 0.110 28);
+  }
+
+  /* ---------- reset ---------- */
+  *,*::before,*::after{ box-sizing:border-box; margin:0; padding:0; }
+  html{ -webkit-text-size-adjust:100%; }
+  body{
+    background:var(--paper-sunk);
+    color:var(--ink);
+    font-family:'IBM Plex Sans','PingFang SC','Microsoft YaHei',system-ui,sans-serif;
+    font-size:15px;
+    line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+  }
+  h1,h2,h3,h4{ font-style:normal !important; font-weight:400; letter-spacing:-0.005em; }
+  button{ font-family:inherit; color:inherit; }
+  textarea,input{ font-family:inherit; }
+  ::selection{ background:var(--accent-weak); }
+
+  .serif{ font-family:'Fraunces','Songti SC',Georgia,serif; font-optical-sizing:auto; font-style:normal; }
+  .mono{ font-family:'IBM Plex Mono','SFMono-Regular',ui-monospace,monospace; }
+  .label{
+    font-family:'IBM Plex Mono',ui-monospace,monospace;
+    font-size:12px; font-weight:500; letter-spacing:0.14em;
+    color:var(--ink-faint); display:block;
+  }
+
+  /* ---------- page shell ---------- */
+  .sheet{ max-width:1320px; margin:0 auto; padding:76px 40px 128px; }
+  .masthead{ margin-bottom:80px; padding-left:2px; }
+  .masthead .label{ margin-bottom:20px; }
+  .masthead h1{
+    font-family:'Fraunces',Georgia,serif; font-optical-sizing:auto;
+    font-size:30px; line-height:1.28; color:var(--ink); max-width:24ch;
+  }
+  .masthead p{
+    margin-top:16px; max-width:62ch; color:var(--ink-soft);
+    font-size:14px; line-height:1.75;
+  }
+  .masthead .rule{ height:1px; background:var(--hairline-firm); margin-top:30px; }
+
+  .screen{ margin-top:72px; }
+  .screen:first-of-type{ margin-top:0; }
+  .screen-cap{
+    display:flex; align-items:baseline; gap:16px; margin-bottom:18px; padding-left:2px;
+  }
+  .screen-cap .n{
+    font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.12em;
+    color:var(--accent-quiet);
+  }
+  .screen-cap .t{
+    font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.14em;
+    color:var(--ink-faint);
+  }
+  .screen-cap .line{ flex:1; height:1px; background:var(--hairline); align-self:center; }
+
+  .frame{
+    border:1px solid var(--hairline-firm);
+    background:var(--paper);
+    overflow:hidden;
+  }
+
+  /* ---------- app grid ---------- */
+  .app{ display:grid; grid-template-columns:248px 1fr; align-items:stretch; min-height:748px; }
+  .app.tall{ min-height:868px; }
+
+  /* ---------- sidebar ---------- */
+  .side{
+    border-right:1px solid var(--hairline);
+    padding:26px 20px 22px;
+    display:flex; flex-direction:column; gap:22px;
+    background:var(--paper-panel);
+  }
+  .brand{ display:flex; flex-direction:column; gap:3px; }
+  .brand .name{ font-family:'Fraunces',Georgia,serif; font-size:18px; color:var(--ink); letter-spacing:0.01em; }
+  .brand .sub{ font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.16em; color:var(--ink-faint); }
+
+  .side-new{
+    display:flex; align-items:center; gap:9px; width:100%;
+    padding:10px 12px; border:1px solid var(--hairline-firm); background:var(--paper);
+    font-size:13px; color:var(--ink); cursor:pointer; border-radius:2px;
+  }
+  .side-new svg{ width:14px; height:14px; flex:none; }
+  .side-new:hover{ border-color:var(--accent); color:var(--accent); }
+
+  .grp{ display:flex; flex-direction:column; gap:9px; }
+  .grp > .label{ margin-bottom:2px; }
+
+  .hist{ display:flex; flex-direction:column; gap:3px; padding:1px 0; cursor:pointer; }
+  .hist .h1{ font-size:13px; color:var(--ink); line-height:1.35; }
+  .hist .h2{ font-size:12px; color:var(--ink-faint); line-height:1.4;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .hist .h3{ font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.06em; color:var(--ink-faint); }
+  .hist:hover .h1{ color:var(--accent); }
+
+  .cmd{ display:flex; flex-direction:column; }
+  .cmd button{
+    text-align:left; background:none; border:0; cursor:pointer;
+    padding:7px 0; font-size:13px; color:var(--ink-soft);
+    border-top:1px solid var(--hairline);
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .cmd button:first-child{ border-top:0; }
+  .cmd button:hover{ color:var(--ink); }
+  .cmd button .k{ font-family:'IBM Plex Mono',monospace; font-size:12px; color:var(--ink-faint); opacity:0; }
+  .cmd button:hover .k{ opacity:1; }
+  .cmd button.is-terminal{ color:var(--terminal); }
+
+  .read{ display:flex; flex-direction:column; gap:8px; }
+  .read .row{ display:flex; align-items:baseline; justify-content:space-between; }
+  .read .row .rk{ font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.12em; color:var(--ink-faint); }
+  .read .row .rv{ font-family:'IBM Plex Mono',monospace; font-size:15px; color:var(--ink); letter-spacing:0.02em; }
+
+  .tools{ margin-top:auto; display:flex; flex-direction:column; gap:2px; padding-top:16px; border-top:1px solid var(--hairline); }
+  .tools button{
+    display:flex; align-items:center; gap:10px; background:none; border:0; cursor:pointer;
+    padding:7px 2px; font-size:12.5px; color:var(--ink-soft);
+  }
+  .tools button svg{ width:15px; height:15px; flex:none; color:var(--ink-faint); }
+  .tools button:hover{ color:var(--ink); }
+  .tools button:hover svg{ color:var(--accent); }
+
+  /* ---------- main region ---------- */
+  .main{ position:relative; padding:56px 76px 40px 96px; }
+  .main::before{
+    content:""; position:absolute; left:48px; top:0; bottom:0;
+    width:1px; background:var(--hairline);
+  }
+  .folio{
+    position:absolute; top:22px; right:26px;
+    font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.14em;
+    color:var(--ink-faint);
+  }
+
+  /* screen 1 — empty main note */
+  .main-idle{ display:flex; align-items:center; min-height:640px; }
+  .main-idle p{
+    font-family:'IBM Plex Mono',monospace; font-size:12px; line-height:2; letter-spacing:0.08em;
+    color:var(--ink-faint); max-width:34ch;
+  }
+
+  /* ---------- welcome ---------- */
+  .welcome{ padding-top:40px; max-width:53ch; }
+  .welcome .over{
+    font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.22em;
+    color:var(--accent-quiet); margin-bottom:26px;
+  }
+  .welcome h2{
+    font-family:'Fraunces',Georgia,serif; font-optical-sizing:auto;
+    font-size:47px; line-height:1.16; color:var(--ink); letter-spacing:-0.01em;
+  }
+  .welcome .lead{
+    margin-top:26px; font-size:16.5px; line-height:1.78; color:var(--ink-soft); max-width:44ch;
+  }
+  .welcome .cta{
+    margin-top:40px;
+    display:inline-flex; align-items:center; gap:10px;
+    padding:15px 26px; background:var(--accent); color:var(--on-accent);
+    border:1px solid var(--accent); border-radius:2px; cursor:pointer;
+    font-size:14px; letter-spacing:0.02em;
+  }
+  .welcome .cta svg{ width:16px; height:16px; }
+  .welcome .caps{
+    margin-top:56px; padding-top:20px; border-top:1px solid var(--hairline);
+    font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.04em;
+    color:var(--ink-faint); line-height:2;
+  }
+
+  /* ---------- chat / manuscript ---------- */
+  .thread{ max-width:60ch; }
+  .turn{ position:relative; }
+  .turn .marker{
+    position:absolute; left:-52px; top:2px;
+    font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.1em;
+    color:var(--ink-faint); text-align:right; width:36px;
+  }
+  .turn-q{ margin-bottom:22px; }
+  .turn-q .role{
+    font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.16em;
+    color:var(--accent-quiet); margin-bottom:9px;
+  }
+  .turn-q .say{
+    font-family:'Fraunces',Georgia,serif; font-optical-sizing:auto;
+    font-size:20px; line-height:1.58; color:var(--ink);
+  }
+  .turn-a{ margin:0 0 38px 26px; padding-left:22px; border-left:1px solid var(--hairline-firm); }
+  .turn-a .role{
+    font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.16em;
+    color:var(--ink-faint); margin-bottom:8px;
+  }
+  .turn-a .say{ font-size:15px; line-height:1.72; color:var(--ink-soft); }
+
+  .composer{
+    margin-top:36px; max-width:64ch;
+    border-top:1px solid var(--hairline-firm); padding-top:20px;
+  }
+  .composer .box{
+    display:flex; align-items:flex-end; gap:12px;
+    border:1px solid var(--hairline-firm); background:var(--paper-panel);
+    border-radius:2px; padding:12px 12px 12px 14px;
+  }
+  .composer textarea{
+    flex:1; border:0; background:none; resize:none; color:var(--ink);
+    font-size:14.5px; line-height:1.6; min-height:44px; outline:none;
+  }
+  .composer textarea::placeholder{ color:var(--ink-faint); }
+  .composer .icon-btn{
+    flex:none; width:34px; height:34px; display:grid; place-items:center;
+    border:1px solid var(--hairline-firm); background:var(--paper); border-radius:2px; cursor:pointer;
+  }
+  .composer .icon-btn svg{ width:16px; height:16px; color:var(--ink-soft); }
+  .composer .send{ background:var(--accent); border-color:var(--accent); }
+  .composer .send svg{ color:var(--on-accent); }
+  .composer .hint{
+    margin-top:11px; font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.06em;
+    color:var(--ink-faint);
+  }
+
+  /* ---------- overlay screens ---------- */
+  .stage{
+    position:relative; background:var(--paper-sunk);
+    padding:52px; min-height:760px;
+    display:flex; align-items:flex-start; justify-content:center;
+  }
+  .stage::before{
+    content:""; position:absolute; inset:0;
+    background:color-mix(in oklch, var(--ink) 42%, transparent);
+  }
+  @supports not (background: color-mix(in oklch, red, blue)){
+    .stage::before{ background:rgba(40,44,62,0.42); }
+  }
+
+  /* ---------- review document ---------- */
+  .doc{
+    position:relative; width:100%; max-width:772px;
+    background:var(--paper); border:1px solid var(--hairline-firm);
+    padding:52px 60px 60px;
+  }
+  .doc-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:24px; }
+  .doc-head h2{
+    font-family:'Fraunces',Georgia,serif; font-optical-sizing:auto;
+    font-size:29px; color:var(--ink);
+  }
+  .doc-head .acts{ display:flex; align-items:center; gap:8px; flex:none; }
+  .btn{
+    display:inline-flex; align-items:center; gap:8px;
+    padding:9px 15px; border:1px solid var(--hairline-firm); background:var(--paper);
+    font-size:12.5px; color:var(--ink); border-radius:2px; cursor:pointer;
+  }
+  .btn svg{ width:14px; height:14px; }
+  .btn--accent{ background:var(--accent); border-color:var(--accent); color:var(--on-accent); }
+  .btn--ghost{ border-color:transparent; padding:9px 8px; color:var(--ink-faint); }
+  .btn--ghost:hover{ color:var(--ink); }
+
+  .meta{
+    margin-top:30px; border-top:1px solid var(--hairline-firm);
+    border-bottom:1px solid var(--hairline-firm);
+    display:grid; grid-template-columns:1fr 1fr;
+  }
+  .meta .cell{ padding:16px 0; border-bottom:1px solid var(--hairline); }
+  .meta .cell:nth-child(1),.meta .cell:nth-child(2){ }
+  .meta .cell:nth-last-child(1),.meta .cell:nth-last-child(2){ border-bottom:0; }
+  .meta .cell:nth-child(odd){ padding-right:24px; }
+  .meta .cell:nth-child(even){ padding-left:24px; border-left:1px solid var(--hairline); }
+  .meta .mk{ font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.14em; color:var(--ink-faint); }
+  .meta .mv{ margin-top:6px; font-size:15px; color:var(--ink); }
+  .meta .mv.score{ font-family:'Fraunces',Georgia,serif; font-size:23px; letter-spacing:0.01em; }
+  .meta .mv.verdict{ font-family:'Fraunces',Georgia,serif; font-size:19px; color:var(--accent); }
+
+  .sec-label{
+    margin-top:38px; padding-bottom:9px; border-bottom:1px solid var(--hairline-firm);
+    font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.18em; color:var(--ink-faint);
+  }
+
+  .qitem{ padding-top:22px; }
+  .qitem .qtop{ display:flex; align-items:baseline; justify-content:space-between; gap:16px; }
+  .qitem .qid{ font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.1em; color:var(--accent-quiet); }
+  .qitem .qsc{ font-family:'Fraunces',Georgia,serif; font-size:18px; color:var(--ink); }
+  .qitem .qstem{
+    margin-top:10px; font-family:'Fraunces',Georgia,serif; font-optical-sizing:auto;
+    font-size:17px; line-height:1.55; color:var(--ink); max-width:58ch;
+  }
+  .qblock{ margin-top:18px; max-width:60ch; }
+  .qblock .bk{ font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.14em; color:var(--ink-faint); margin-bottom:6px; }
+  .qblock .bv{ font-size:14px; line-height:1.72; color:var(--ink-soft); }
+  .qblock.ref{ background:var(--accent-weak); border-radius:2px; padding:14px 16px; }
+  .qblock.ref .bv{ color:var(--ink); }
+
+  .assess{ margin-top:6px; }
+  .assess .ab{ padding:20px 0; border-bottom:1px solid var(--hairline); }
+  .assess .ab:last-child{ border-bottom:0; }
+  .assess .ak{ font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.14em; color:var(--ink); margin-bottom:12px; }
+  .assess .ai{ display:flex; gap:12px; padding:5px 0; max-width:58ch; }
+  .assess .ai .d{ color:var(--accent-quiet); font-family:'IBM Plex Mono',monospace; flex:none; }
+  .assess .ai .x{ font-size:14px; line-height:1.62; color:var(--ink-soft); }
+
+  /* ---------- settings ---------- */
+  .panel{
+    position:relative; width:100%; max-width:560px;
+    background:var(--paper); border:1px solid var(--hairline-firm);
+    padding:40px 44px 44px;
+  }
+  .panel-head{ display:flex; align-items:center; justify-content:space-between; }
+  .panel-head h2{ font-family:'Fraunces',Georgia,serif; font-size:23px; color:var(--ink); }
+  .panel-head .x{ background:none; border:0; cursor:pointer; color:var(--ink-faint); display:grid; place-items:center; }
+  .panel-head .x svg{ width:16px; height:16px; }
+
+  .fld{ margin-top:26px; }
+  .fld > .label{ margin-bottom:10px; }
+  .chips{ display:flex; flex-wrap:wrap; gap:8px; }
+  .chip{
+    font-family:'IBM Plex Mono',monospace; font-size:12px;
+    padding:7px 13px; border:1px solid var(--hairline-firm); background:var(--paper);
+    color:var(--ink-soft); border-radius:2px; cursor:pointer;
+  }
+  .chip.is-active{ background:var(--accent); border-color:var(--accent); color:var(--on-accent); }
+
+  .inp{ margin-top:18px; }
+  .inp label{ margin-bottom:7px; }
+  .inp input{
+    width:100%; padding:11px 12px; font-size:14px;
+    border:1px solid var(--hairline-firm); background:var(--paper-sunk); color:var(--ink);
+    border-radius:2px; outline:none;
+  }
+  .inp input:focus{ border-color:var(--accent); }
+  .inp input::placeholder{ color:var(--ink-faint); }
+
+  .panel-foot{
+    margin-top:30px; padding-top:20px; border-top:1px solid var(--hairline);
+    display:flex; align-items:center; gap:12px;
+  }
+  .panel-foot .status{
+    margin-left:auto; display:flex; align-items:center; gap:7px;
+    font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.08em; color:var(--ink-faint);
+  }
+  .panel-foot .status .dot{ width:5px; height:5px; border-radius:50%; background:var(--accent-quiet); }
+
+  .foot{
+    margin-top:96px; padding-top:22px; border-top:1px solid var(--hairline-firm);
+    font-family:'IBM Plex Mono',monospace; font-size:12px; letter-spacing:0.1em; color:var(--ink-faint);
+  }
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <header class="masthead">
+    <span class="label">面试模拟练习 · 前端全站高保真初稿</span>
+    <h1 class="serif">方向 C — 静、郑重、器物般精确</h1>
+    <p>一个人紧张地、独自地被 AI 面试官发问和打分。界面把注意力接住，让他只面对「这一问、这一答」；结束的复盘是一份值得留存的评估书。母题：问答手稿 / 卷宗。</p>
+    <div class="rule"></div>
+  </header>
+
+  <!-- ============ 屏 01 · 侧栏 ============ -->
+  <section class="screen">
+    <div class="screen-cap">
+      <span class="n">01</span><span class="t">侧栏 · 常驻左栏</span><span class="line"></span>
+    </div>
+    <div class="frame">
+      <div class="app tall">
+        <aside class="side" id="side-1">
+          <div class="brand">
+            <span class="name">面试模拟</span>
+            <span class="sub">练习模式</span>
+          </div>
+          <button class="side-new">
+            <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="9" y1="3.5" x2="9" y2="14.5"/><line x1="3.5" y1="9" x2="14.5" y2="9"/></svg>
+            新的一场
+          </button>
+
+          <div class="grp">
+            <span class="label">历史记录</span>
+            <div class="hist">
+              <span class="h1">后端开发工程师</span>
+              <span class="h2">面这个岗位练一下</span>
+              <span class="h3">刚刚 · 3 轮</span>
+            </div>
+            <div class="hist">
+              <span class="h1">数据分析师</span>
+              <span class="h3">2 小时前 · 8 轮</span>
+            </div>
+          </div>
+
+          <div class="grp">
+            <span class="label">面试中可用</span>
+            <div class="cmd">
+              <button><span>要一个提示</span><span class="k">hint</span></button>
+              <button><span>跳过这题</span><span class="k">skip</span></button>
+              <button><span>看参考答案</span><span class="k">explain</span></button>
+              <button><span>看当前评分</span><span class="k">score</span></button>
+              <button><span>加大难度</span><span class="k">harder</span></button>
+              <button><span>降低难度</span><span class="k">easier</span></button>
+              <button class="is-terminal"><span>结束面试</span><span class="k">end</span></button>
+            </div>
+          </div>
+
+          <div class="grp">
+            <span class="label">这场面试</span>
+            <div class="read">
+              <div class="row"><span class="rk">用时</span><span class="rv">12:34</span></div>
+              <div class="row"><span class="rk">已答</span><span class="rv">5</span></div>
+            </div>
+          </div>
+
+          <div class="tools">
+            <button>
+              <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v4h2.5L9 14V4L5.5 7H3z"/><path d="M11.5 6.5a3 3 0 0 1 0 5"/></svg>
+              语音播报
+            </button>
+            <button>
+              <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13.6 10.3A5.2 5.2 0 0 1 7.7 4.4a5.2 5.2 0 1 0 5.9 5.9z"/></svg>
+              深色模式
+            </button>
+            <button>
+              <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="6" r="2.6"/><path d="M4 15c0-2.9 2.2-4.6 5-4.6s5 1.7 5 4.6"/></svg>
+              我的资料
+            </button>
+            <button>
+              <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3.4l5.6 3L9 9.4 3.4 6.4 9 3.4z"/><path d="M3.4 9.6L9 12.6l5.6-3"/></svg>
+              我的题库
+            </button>
+            <button>
+              <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3.5" y1="6" x2="14.5" y2="6"/><line x1="3.5" y1="12" x2="14.5" y2="12"/><circle cx="7" cy="6" r="1.7" fill="currentColor" stroke="none"/><circle cx="11" cy="12" r="1.7" fill="currentColor" stroke="none"/></svg>
+              模型配置
+            </button>
+          </div>
+        </aside>
+
+        <div class="main">
+          <span class="folio">面试模拟 / 00</span>
+          <div class="main-idle">
+            <p>主区随会话状态切换 —— 未开始见 屏 02，进行中见 屏 03。侧栏常驻不变。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 屏 02 · 欢迎首屏 ============ -->
+  <section class="screen">
+    <div class="screen-cap">
+      <span class="n">02</span><span class="t">欢迎首屏 · 会话未开始</span><span class="line"></span>
+    </div>
+    <div class="frame">
+      <div class="app">
+        <aside class="side">
+          <div class="brand">
+            <span class="name">面试模拟</span>
+            <span class="sub">练习模式</span>
+          </div>
+          <button class="side-new">
+            <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="9" y1="3.5" x2="9" y2="14.5"/><line x1="3.5" y1="9" x2="14.5" y2="9"/></svg>
+            新的一场
+          </button>
+          <div class="grp">
+            <span class="label">历史记录</span>
+            <div class="hist">
+              <span class="h1">后端开发工程师</span>
+              <span class="h2">面这个岗位练一下</span>
+              <span class="h3">刚刚 · 3 轮</span>
+            </div>
+            <div class="hist">
+              <span class="h1">数据分析师</span>
+              <span class="h3">2 小时前 · 8 轮</span>
+            </div>
+          </div>
+          <div class="grp">
+            <span class="label">面试中可用</span>
+            <div class="cmd">
+              <button><span>要一个提示</span><span class="k">hint</span></button>
+              <button><span>跳过这题</span><span class="k">skip</span></button>
+              <button><span>看参考答案</span><span class="k">explain</span></button>
+              <button><span>看当前评分</span><span class="k">score</span></button>
+              <button><span>加大难度</span><span class="k">harder</span></button>
+              <button><span>降低难度</span><span class="k">easier</span></button>
+              <button class="is-terminal"><span>结束面试</span><span class="k">end</span></button>
+            </div>
+          </div>
+          <div class="grp">
+            <span class="label">这场面试</span>
+            <div class="read">
+              <div class="row"><span class="rk">用时</span><span class="rv">--:--</span></div>
+              <div class="row"><span class="rk">已答</span><span class="rv">0</span></div>
+            </div>
+          </div>
+          <div class="tools">
+            <button><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v4h2.5L9 14V4L5.5 7H3z"/><path d="M11.5 6.5a3 3 0 0 1 0 5"/></svg>语音播报</button>
+            <button><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13.6 10.3A5.2 5.2 0 0 1 7.7 4.4a5.2 5.2 0 1 0 5.9 5.9z"/></svg>深色模式</button>
+            <button><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="6" r="2.6"/><path d="M4 15c0-2.9 2.2-4.6 5-4.6s5 1.7 5 4.6"/></svg>我的资料</button>
+            <button><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3.4l5.6 3L9 9.4 3.4 6.4 9 3.4z"/><path d="M3.4 9.6L9 12.6l5.6-3"/></svg>我的题库</button>
+            <button><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3.5" y1="6" x2="14.5" y2="6"/><line x1="3.5" y1="12" x2="14.5" y2="12"/><circle cx="7" cy="6" r="1.7" fill="currentColor" stroke="none"/><circle cx="11" cy="12" r="1.7" fill="currentColor" stroke="none"/></svg>模型配置</button>
+          </div>
+        </aside>
+
+        <div class="main">
+          <span class="folio">面试模拟 / 起</span>
+          <div class="welcome">
+            <div class="over">练习，然后再上场</div>
+            <h2 class="serif">把面试当练习，一题一题过。</h2>
+            <p class="lead">选好岗位和级别，面试官逐题发问、当场点评；结束后给你一份带参考答案和评分的完整复盘。</p>
+            <button class="cta">
+              开始面试
+              <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3.5" y1="9" x2="13.5" y2="9"/><path d="M10 5.5l4 3.5-4 3.5"/></svg>
+            </button>
+            <div class="caps">语音或打字作答 · 逐题评分 · 随时要提示或跳过 · 结束出复盘</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 屏 03 · 面试进行中 ============ -->
+  <section class="screen">
+    <div class="screen-cap">
+      <span class="n">03</span><span class="t">面试进行中</span><span class="line"></span>
+    </div>
+    <div class="frame">
+      <div class="app tall">
+        <aside class="side">
+          <div class="brand">
+            <span class="name">面试模拟</span>
+            <span class="sub">进行中</span>
+          </div>
+          <button class="side-new">
+            <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="9" y1="3.5" x2="9" y2="14.5"/><line x1="3.5" y1="9" x2="14.5" y2="9"/></svg>
+            新的一场
+          </button>
+          <div class="grp">
+            <span class="label">面试中可用</span>
+            <div class="cmd">
+              <button><span>要一个提示</span><span class="k">hint</span></button>
+              <button><span>跳过这题</span><span class="k">skip</span></button>
+              <button><span>看参考答案</span><span class="k">explain</span></button>
+              <button><span>看当前评分</span><span class="k">score</span></button>
+              <button><span>加大难度</span><span class="k">harder</span></button>
+              <button><span>降低难度</span><span class="k">easier</span></button>
+              <button class="is-terminal"><span>结束面试</span><span class="k">end</span></button>
+            </div>
+          </div>
+          <div class="grp">
+            <span class="label">这场面试</span>
+            <div class="read">
+              <div class="row"><span class="rk">用时</span><span class="rv">12:34</span></div>
+              <div class="row"><span class="rk">已答</span><span class="rv">5</span></div>
+            </div>
+          </div>
+          <div class="grp">
+            <span class="label">历史记录</span>
+            <div class="hist">
+              <span class="h1">数据分析师</span>
+              <span class="h3">2 小时前 · 8 轮</span>
+            </div>
+          </div>
+          <div class="tools">
+            <button><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v4h2.5L9 14V4L5.5 7H3z"/><path d="M11.5 6.5a3 3 0 0 1 0 5"/></svg>语音播报</button>
+            <button><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13.6 10.3A5.2 5.2 0 0 1 7.7 4.4a5.2 5.2 0 1 0 5.9 5.9z"/></svg>深色模式</button>
+            <button><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="6" r="2.6"/><path d="M4 15c0-2.9 2.2-4.6 5-4.6s5 1.7 5 4.6"/></svg>我的资料</button>
+            <button><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3.4l5.6 3L9 9.4 3.4 6.4 9 3.4z"/><path d="M3.4 9.6L9 12.6l5.6-3"/></svg>我的题库</button>
+            <button><svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3.5" y1="6" x2="14.5" y2="6"/><line x1="3.5" y1="12" x2="14.5" y2="12"/><circle cx="7" cy="6" r="1.7" fill="currentColor" stroke="none"/><circle cx="11" cy="12" r="1.7" fill="currentColor" stroke="none"/></svg>模型配置</button>
+          </div>
+        </aside>
+
+        <div class="main">
+          <span class="folio">面试模拟 / 03</span>
+          <div class="thread">
+
+            <div class="turn turn-q">
+              <span class="marker">问 01</span>
+              <div class="role">面试官</div>
+              <div class="say serif">我们先从系统设计聊起。为一个日活百万的应用设计短链接服务的存储层，说说你的取舍。</div>
+            </div>
+            <div class="turn turn-a">
+              <span class="marker">答</span>
+              <div class="role">你</div>
+              <div class="say">先用关系型数据库存 长链 → 短码 的映射，短码用发号器生成，再加一层缓存扛读。写入量不大，读多写少。</div>
+            </div>
+
+            <div class="turn turn-q">
+              <span class="marker">问 02</span>
+              <div class="role">面试官</div>
+              <div class="say serif">那发号器怎么保证高可用？如果它挂了，整个写入链路就断了。有没有备选方案？</div>
+            </div>
+            <div class="turn turn-a">
+              <span class="marker">答</span>
+              <div class="role">你</div>
+              <div class="say">可以给发号器做主备切换，或者用号段模式——每个实例一次领一批 ID 段，本地发完再来领；这样即使中心节点短时间不可用，已经领到段的实例还能继续写。</div>
+            </div>
+
+          </div>
+
+          <div class="composer">
+            <div class="box">
+              <textarea rows="2" placeholder="写下你的回答，或点麦克风口述"></textarea>
+              <button class="icon-btn" aria-label="麦克风">
+                <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6.5" y="2.5" width="5" height="9" rx="2.5"/><path d="M4 9a5 5 0 0 0 10 0"/><line x1="9" y1="14" x2="9" y2="16"/></svg>
+              </button>
+              <button class="icon-btn send" aria-label="发送">
+                <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="3.5" y1="9" x2="13.5" y2="9"/><path d="M10 5.5l4 3.5-4 3.5"/></svg>
+              </button>
+            </div>
+            <div class="hint">Enter 发送 · Shift + Enter 换行</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 屏 04 · 复盘浮层 ============ -->
+  <section class="screen">
+    <div class="screen-cap">
+      <span class="n">04</span><span class="t">复盘浮层</span><span class="line"></span>
+    </div>
+    <div class="frame">
+      <div class="stage">
+        <div class="doc">
+          <div class="doc-head">
+            <h2 class="serif">面试复盘</h2>
+            <div class="acts">
+              <button class="btn btn--accent">
+                <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="9" y1="3" x2="9" y2="11.5"/><path d="M5.5 8L9 11.5 12.5 8"/><line x1="4" y1="14.5" x2="14" y2="14.5"/></svg>
+                下载 Word
+              </button>
+              <button class="btn btn--ghost">
+                <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="4.5" y1="4.5" x2="13.5" y2="13.5"/><line x1="13.5" y1="4.5" x2="4.5" y2="13.5"/></svg>
+                关闭
+              </button>
+            </div>
+          </div>
+
+          <div class="meta">
+            <div class="cell"><div class="mk">岗位</div><div class="mv">后端开发工程师</div></div>
+            <div class="cell"><div class="mk">层级</div><div class="mv">中级 · P6</div></div>
+            <div class="cell"><div class="mk">综合评分</div><div class="mv score">6.5/10</div></div>
+            <div class="cell"><div class="mk">结论</div><div class="mv verdict">Lean Hire</div></div>
+          </div>
+
+          <div class="sec-label">逐题回顾</div>
+          <div class="qitem">
+            <div class="qtop">
+              <span class="qid">Q1</span>
+              <span class="qsc">7/10</span>
+            </div>
+            <div class="qstem serif">为一个日活百万的应用设计短链接服务的存储层，说说取舍。</div>
+
+            <div class="qblock">
+              <div class="bk">你的回答</div>
+              <div class="bv">用关系型数据库存映射，短码用发号器生成，加缓存扛读。读多写少。</div>
+            </div>
+            <div class="qblock ref">
+              <div class="bk">参考答案</div>
+              <div class="bv">关键点：短码生成策略（发号器 / hash / 预生成池）、存储选型与容量估算、缓存与热点、301 vs 302、防刷与过期。能主动给出 QPS 与存储量的量级估算是加分项。</div>
+            </div>
+            <div class="qblock">
+              <div class="bk">点评</div>
+              <div class="bv">方向对，但没做容量估算，也没提发号器的高可用；追问后才补上。</div>
+            </div>
+          </div>
+
+          <div class="sec-label">总体评价</div>
+          <div class="assess">
+            <div class="ab">
+              <div class="ak">做得好的</div>
+              <div class="ai"><span class="d">—</span><span class="x">基础结构清晰，能快速给出可行方案</span></div>
+              <div class="ai"><span class="d">—</span><span class="x">愿意在追问下修正</span></div>
+            </div>
+            <div class="ab">
+              <div class="ak">可以更好的</div>
+              <div class="ai"><span class="d">—</span><span class="x">缺少量级估算的习惯</span></div>
+              <div class="ai"><span class="d">—</span><span class="x">高可用、容灾常被漏掉</span></div>
+            </div>
+            <div class="ab">
+              <div class="ak">建议补的</div>
+              <div class="ai"><span class="d">—</span><span class="x">容量估算：QPS / 存储 / 带宽的口算</span></div>
+              <div class="ai"><span class="d">—</span><span class="x">分布式发号器：Snowflake、号段模式</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 屏 05 · 设置浮层 ============ -->
+  <section class="screen">
+    <div class="screen-cap">
+      <span class="n">05</span><span class="t">设置浮层 · 模型配置</span><span class="line"></span>
+    </div>
+    <div class="frame">
+      <div class="stage">
+        <div class="panel">
+          <div class="panel-head">
+            <h2 class="serif">模型配置</h2>
+            <button class="x" aria-label="关闭">
+              <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="4.5" y1="4.5" x2="13.5" y2="13.5"/><line x1="13.5" y1="4.5" x2="4.5" y2="13.5"/></svg>
+            </button>
+          </div>
+
+          <div class="fld">
+            <span class="label">选择服务商</span>
+            <div class="chips" id="chips">
+              <button class="chip is-active">DeepSeek</button>
+              <button class="chip">千问</button>
+              <button class="chip">智谱</button>
+              <button class="chip">OpenAI</button>
+              <button class="chip">Moonshot</button>
+              <button class="chip">OpenRouter</button>
+            </div>
+          </div>
+
+          <div class="fld">
+            <div class="inp">
+              <label class="label">API Key</label>
+              <input type="password" value="sk-0000000000000000000000000000" spellcheck="false">
+            </div>
+            <div class="inp">
+              <label class="label">Base URL</label>
+              <input type="text" value="https://api.deepseek.com" spellcheck="false">
+            </div>
+            <div class="inp">
+              <label class="label">模型名称</label>
+              <input type="text" value="deepseek-chat" spellcheck="false">
+            </div>
+          </div>
+
+          <div class="panel-foot">
+            <button class="btn btn--accent">保存</button>
+            <button class="btn">恢复默认</button>
+            <span class="status"><span class="dot"></span>已保存</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="foot">面试模拟练习 · 方向 C · 原研哉「白 / 空」 × Dieter Rams「诚实」 · Fraunces / IBM Plex Sans / IBM Plex Mono</div>
+
+</div>
+
+<script>
+  // 侧栏「深色模式」入口 —— 演示切换
+  document.querySelectorAll('.tools button').forEach(function(b){
+    if (b.textContent.trim() === '深色模式') {
+      b.addEventListener('click', function(){
+        var cur = document.documentElement.getAttribute('data-theme');
+        document.documentElement.setAttribute('data-theme', cur === 'dark' ? 'light' : 'dark');
+      });
+    }
+  });
+  // 服务商 chip 单选
+  var chips = document.getElementById('chips');
+  if (chips) {
+    chips.addEventListener('click', function(e){
+      var t = e.target.closest('.chip'); if (!t) return;
+      chips.querySelectorAll('.chip').forEach(function(c){ c.classList.remove('is-active'); });
+      t.classList.add('is-active');
+    });
+  }
+</script>
+</body>
+</html>

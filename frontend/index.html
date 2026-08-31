@@ -5,7 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Interview Simulator</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=VT323&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -15,10 +16,17 @@
   <aside class="sidebar">
     <div class="sidebar-top">
       <div class="logo">
-        <span class="logo-icon">🎯</span>
+        <span class="logo-icon">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round">
+            <circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="3.6" fill="currentColor" stroke="none" />
+          </svg>
+        </span>
         <span class="logo-text">Interview Simulator</span>
       </div>
-      <button class="new-session-btn" onclick="newSession()">+ 新面试</button>
+      <button class="new-session-btn" onclick="newSession()">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        新面试
+      </button>
     </div>
 
     <!-- History -->
@@ -26,20 +34,6 @@
       <div class="section-label">历史记录</div>
       <div class="session-list" id="session-list">
         <div class="session-empty">暂无历史记录</div>
-      </div>
-    </div>
-
-    <!-- Commands -->
-    <div class="sidebar-section">
-      <div class="section-label">快捷指令</div>
-      <div class="commands">
-        <button class="cmd-btn" onclick="sendCommand('hint')">💡 提示</button>
-        <button class="cmd-btn" onclick="sendCommand('skip')">⏭ 跳过此题</button>
-        <button class="cmd-btn" onclick="sendCommand('explain')">📝 解析答案</button>
-        <button class="cmd-btn" onclick="sendCommand('score')">📊 当前得分</button>
-        <button class="cmd-btn" onclick="sendCommand('harder')">🔥 加大难度</button>
-        <button class="cmd-btn" onclick="sendCommand('easier')">🌊 降低难度</button>
-        <button class="cmd-btn cmd-end" onclick="endInterview()">🏁 结束面试</button>
       </div>
     </div>
 
@@ -63,13 +57,30 @@
 
     <div class="sidebar-footer">
       <button class="toggle-btn" id="tts-btn" onclick="toggleTTS()">
-        <span id="tts-icon">🔇</span><span>语音播报</span>
+        <span id="tts-icon" style="display:contents">
+          <svg class="ic ic-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4Z"/><line x1="16" y1="9.5" x2="21" y2="14.5"/><line x1="21" y1="9.5" x2="16" y2="14.5"/></svg>
+          <svg class="ic ic-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4Z"/><path d="M16 8.5a5 5 0 0 1 0 7"/><path d="M18.5 6a8.5 8.5 0 0 1 0 12"/></svg>
+        </span>
+        <span>语音播报</span>
       </button>
       <button class="toggle-btn" id="theme-btn" onclick="toggleTheme()">
-        <span id="theme-icon">🌙</span><span>深色模式</span>
+        <span id="theme-icon" style="display:contents">
+          <svg class="ic ic-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><line x1="12" y1="3" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="21"/><line x1="3" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="21" y2="12"/><line x1="5.5" y1="5.5" x2="7" y2="7"/><line x1="17" y1="17" x2="18.5" y2="18.5"/><line x1="18.5" y1="5.5" x2="17" y2="7"/><line x1="7" y1="17" x2="5.5" y2="18.5"/></svg>
+          <svg class="ic ic-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13.5A8 8 0 1 1 10.5 4a6.5 6.5 0 0 0 9.5 9.5Z"/></svg>
+        </span>
+        <span>浅色模式</span>
+      </button>
+      <button class="toggle-btn" onclick="openProfile()">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5.5 20.5a6.5 6.5 0 0 1 13 0"/></svg>
+        <span>我的资料</span>
+      </button>
+      <button class="toggle-btn" onclick="openKB()">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3.5" width="14" height="17" rx="1.5"/><line x1="5" y1="7.5" x2="8" y2="7.5"/><line x1="10" y1="8" x2="15.5" y2="8"/><line x1="10" y1="11.5" x2="15.5" y2="11.5"/><line x1="10" y1="15" x2="13" y2="15"/></svg>
+        <span>面试知识库</span>
       </button>
       <button class="toggle-btn" onclick="openSettings()">
-        <span>⚙️</span><span>模型配置</span>
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><line x1="4" y1="8" x2="20" y2="8"/><line x1="4" y1="16" x2="20" y2="16"/><circle cx="9" cy="8" r="2.5"/><circle cx="15" cy="16" r="2.5"/></svg>
+        <span>模型配置</span>
       </button>
     </div>
   </aside>
@@ -80,13 +91,28 @@
     <!-- Welcome -->
     <div class="welcome-screen" id="welcome-screen">
       <div class="welcome-card">
-        <div class="welcome-icon">🎯</div>
-        <h1>Mock Interview Simulator</h1>
-        <p>AI 驱动的专业面试模拟，支持语音输入<br/>任意岗位 · 全程评分 · 实时反馈</p>
-        <button class="start-btn" onclick="startSession()">开始面试</button>
-        <div class="welcome-tags">
-          <span>🎙 语音输入</span><span>📊 逐题评分</span>
-          <span>💡 随时提示</span><span>📋 面试报告</span>
+        <div class="welcome-main">
+          <div class="welcome-overline">模拟面试</div>
+          <h1>认真准备一场面试，<br/>用不紧张的方式</h1>
+          <p>告诉我你面的岗位和级别，我们逐题练习、即时反馈；结束后生成一份带标准答案与评分的完整报告。</p>
+          <button class="start-btn" onclick="openStartConfirm()">开始面试</button>
+          <div class="welcome-tags">
+            <span>语音作答</span>
+            <span>逐题评分</span>
+            <span>随时提示</span>
+            <span>面试报告</span>
+          </div>
+        </div>
+        <div class="level-path" aria-hidden="true">
+          <span class="lp-label">关卡路线</span>
+          <span class="lp-node lp-node--start"></span>
+          <span class="lp-link"></span>
+          <span class="lp-node"></span>
+          <span class="lp-link"></span>
+          <span class="lp-node"></span>
+          <span class="lp-link"></span>
+          <span class="lp-node"></span>
+          <span class="lp-start-tag">START</span>
         </div>
       </div>
     </div>
@@ -98,14 +124,45 @@
 
     <!-- Ended bar (shows after interview ends) -->
     <div class="ended-bar" id="ended-bar">
-      <span>🏁 面试已结束</span>
+      <span>面试已结束</span>
       <button class="ended-report-btn" id="rpt-gen-btn" onclick="openReport()">
-        📋 生成面试报告
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4.5" width="12" height="16" rx="1.8"/><path d="M9.5 4.5V3.5h5v1"/><line x1="9" y1="10" x2="15" y2="10"/><line x1="9" y1="13.5" x2="15" y2="13.5"/><line x1="9" y1="17" x2="12.5" y2="17"/></svg>
+        生成面试报告
       </button>
     </div>
 
     <!-- Input -->
     <div class="input-area" id="input-area">
+      <div class="commands" id="commands">
+        <button class="cmd-btn" onclick="sendCommand('hint')">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 21.5h4"/><path d="M12 2.5a6.5 6.5 0 0 0-4 11.6c.6.5 1 1.2 1 2.4h6c0-1.2.4-1.9 1-2.4A6.5 6.5 0 0 0 12 2.5Z"/></svg>
+          提示
+        </button>
+        <button class="cmd-btn" onclick="sendCommand('skip')">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 5 15 12 6 19"/><line x1="18" y1="5" x2="18" y2="19"/></svg>
+          跳过此题
+        </button>
+        <button class="cmd-btn" onclick="sendCommand('explain')">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v4.5a1 1 0 0 0 1 1H19"/><path d="M18 21H6a1.5 1.5 0 0 1-1.5-1.5v-15A1.5 1.5 0 0 1 6 3h8l5.5 5.5V19.5A1.5 1.5 0 0 1 18 21Z"/><line x1="8.5" y1="13" x2="15.5" y2="13"/><line x1="8.5" y1="16.5" x2="13" y2="16.5"/></svg>
+          解析答案
+        </button>
+        <button class="cmd-btn" onclick="sendCommand('score')">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><line x1="6" y1="20" x2="6" y2="12"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="18" y1="20" x2="18" y2="9"/></svg>
+          当前得分
+        </button>
+        <button class="cmd-btn" onclick="sendCommand('harder')">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 16.5 9 10.5 13 14.5 21 6.5"/><polyline points="15 6.5 21 6.5 21 12.5"/></svg>
+          加大难度
+        </button>
+        <button class="cmd-btn" onclick="sendCommand('easier')">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 7.5 9 13.5 13 9.5 21 17.5"/><polyline points="15 17.5 21 17.5 21 11.5"/></svg>
+          降低难度
+        </button>
+        <button class="cmd-btn cmd-end" onclick="endInterview()">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="21" x2="5" y2="4"/><path d="M5 4c3-1.6 6 1.6 9 0v9c-3 1.6-6-1.6-9 0"/></svg>
+          结束面试
+        </button>
+      </div>
       <div class="voice-indicator" id="voice-indicator">
         <span class="voice-dot"></span>正在聆听...
       </div>
@@ -142,11 +199,18 @@
   <div class="report-panel">
     <div class="report-header">
       <div class="report-hd-left">
-        <span>📋</span><h2>面试报告</h2>
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4.5" width="12" height="16" rx="1.8"/><path d="M9.5 4.5V3.5h5v1"/><line x1="9" y1="10" x2="15" y2="10"/><line x1="9" y1="13.5" x2="15" y2="13.5"/><line x1="9" y1="17" x2="12.5" y2="17"/></svg>
+        <h2>面试报告</h2>
       </div>
       <div class="report-hd-right">
-        <button class="rpt-btn" id="rpt-dl-btn" onclick="downloadReport()">⬇ 下载 Word</button>
-        <button class="rpt-btn rpt-close" onclick="closeReport()">✕ 关闭</button>
+        <button class="rpt-btn" id="rpt-dl-btn" onclick="downloadReport()">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5v11"/><polyline points="7.5 10 12 14.5 16.5 10"/><path d="M5 20h14"/></svg>
+          下载 Word
+        </button>
+        <button class="rpt-btn rpt-close" onclick="closeReport()">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>
+          关闭
+        </button>
       </div>
     </div>
     <div class="report-body" id="report-body">
@@ -162,8 +226,10 @@
 <div class="overlay" id="settings-overlay">
   <div class="settings-panel">
     <div class="settings-header">
-      <h3>⚙️ 模型配置</h3>
-      <button class="settings-close" onclick="closeSettings()">✕</button>
+      <h3>模型配置</h3>
+      <button class="settings-close" onclick="closeSettings()">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>
+      </button>
     </div>
     <div class="settings-body">
       <div class="preset-label">快速选择厂商</div>
@@ -193,6 +259,102 @@
         <button class="settings-reset" onclick="resetSettings()">恢复默认</button>
       </div>
       <div class="settings-status" id="settings-status"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── My Profile Panel ── -->
+<div class="overlay" id="profile-overlay">
+  <div class="settings-panel">
+    <div class="settings-header">
+      <h3>我的资料</h3>
+      <button class="settings-close" onclick="closeProfile()">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>
+      </button>
+    </div>
+    <div class="settings-body">
+      <div class="profile-section">
+        <div class="preset-label">简历（PDF / Word / txt，只保留最新一份）</div>
+        <div class="resume-current" id="resume-current">
+          <span class="resume-empty">还没上传简历</span>
+        </div>
+        <label class="resume-upload-btn">
+          <input type="file" id="resume-file" accept=".pdf,.docx,.txt,.md" onchange="uploadResume()" hidden />
+          选择文件上传
+        </label>
+        <div class="settings-status" id="resume-status"></div>
+      </div>
+
+      <div class="profile-section">
+        <div class="preset-label">岗位 JD（可保存多条）</div>
+        <div class="form-group">
+          <input type="text" id="jd-title" placeholder="岗位名称，如：后端开发工程师" />
+        </div>
+        <div class="form-group">
+          <textarea id="jd-text" class="jd-textarea" rows="5" placeholder="把岗位描述粘贴到这里…"></textarea>
+        </div>
+        <div class="settings-actions">
+          <button class="settings-save" onclick="saveJD()">保存这条 JD</button>
+        </div>
+        <div class="settings-status" id="jd-status"></div>
+        <div class="jd-list" id="jd-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Start Interview Confirm ── -->
+<div class="overlay" id="start-overlay">
+  <div class="start-card">
+    <h3>准备开始面试</h3>
+    <p class="start-sub">挑一份要参考的资料，面试官会优先围绕它出题；不选也可以直接开始。</p>
+
+    <div class="start-field">
+      <span class="start-field-label">简历</span>
+      <label class="start-check">
+        <input type="checkbox" id="start-use-resume" />
+        <span id="start-resume-name">未上传简历</span>
+      </label>
+    </div>
+
+    <div class="start-field">
+      <span class="start-field-label">岗位 JD</span>
+      <select id="start-jd" class="start-select">
+        <option value="">不使用 JD</option>
+      </select>
+    </div>
+
+    <div class="start-actions">
+      <button class="settings-save" onclick="confirmStart(false)">按资料开始面试</button>
+      <button class="settings-reset" onclick="confirmStart(true)">通用模式开始</button>
+    </div>
+    <button class="start-close" onclick="closeStartConfirm()">取消</button>
+  </div>
+</div>
+
+<!-- ── Interview Knowledge Base ── -->
+<div class="overlay" id="kb-overlay">
+  <div class="settings-panel kb-panel">
+    <div class="settings-header">
+      <h3>面试知识库</h3>
+      <button class="settings-close" onclick="closeKB()">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>
+      </button>
+    </div>
+    <div class="settings-body">
+      <p class="kb-intro">导入你自己整理的真实面试题（<code>.md</code> / <code>.docx</code>）。面试时会参考这些题的风格出新题，偶尔原样重问一道。</p>
+
+      <label class="kb-drop">
+        <input type="file" id="kb-file" accept=".md,.markdown,.docx" onchange="uploadKB()" hidden />
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a4 4 0 0 1-.5-8 6 6 0 0 1 11.5 1.5 3.5 3.5 0 0 1-.4 6.9"/><polyline points="9.5 13 12 10.5 14.5 13"/><line x1="12" y1="10.5" x2="12" y2="17.5"/></svg>
+        <span class="kb-drop-main">选择文件上传</span>
+        <span class="kb-drop-sub">AI 会自动把整篇拆成一条条题目</span>
+      </label>
+      <div class="settings-status" id="kb-status"></div>
+
+      <div class="kb-filter" id="kb-filter" hidden></div>
+      <div class="kb-list" id="kb-list"></div>
+      <div class="kb-pager" id="kb-pager" hidden></div>
     </div>
   </div>
 </div>

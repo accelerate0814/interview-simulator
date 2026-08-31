@@ -1,0 +1,753 @@
+<!--
+  面试模拟练习 — 前端全站高保真初稿 · 方向 A：像素游戏横版叙事 / 关卡化进阶练习
+  ================================================================================
+
+  FORM（版式）来自内容的哪里：
+  面试的本质是「一问一答的回合」+「结束后被记录、被打分」。把它读成一款横版闯关游戏——
+  每答一题过一关，一路推进，最后进入结算画面。于是整站骨架 = 游戏 HUD 布局：
+    · 左栏 = 关卡选择栏（历史存档）+ 玩家状态面板（这场面试的读数）
+    · 主区顶部 = 一条常驻 HUD 读数条（用时 / 已答 / 本关）
+    · 聊天 = 带回合编号（ROUND）的回合制对话
+    · 复盘 = 「STAGE CLEAR」通关结算画面：分数结算 + 战利品式评价列表
+  chrome（侧栏、读数、按钮、题卡边框、分区）用像素 / HUD 语言：硬边、2–4px 描边、
+  生硬底阴影按钮（0 4px 0 + :active 位移）、blocky 分区、sprite 感线性图标、VT323 读数。
+  但正文（题干、你的回答、参考答案、点评、欢迎正文）一律普通高可读无衬线，15px / 行高 1.7、
+  对比度 ≥ 4.5:1——长文阅读区不做像素字。像素字（VT323）只用于读数与关卡号。
+
+  选色论证：
+  主色取自「街机关卡进度」文化语境——磷光屏绿 #4fd67f ≈ oklch(0.80 0.15 152)，
+  它在平台游戏里就是「过关 / 前进 / 1UP / GO」的颜色，用作唯一能量色。
+  警示 accent 用橙红 #ff6a45 ≈ oklch(0.70 0.19 38)，只占小面积（加大难度 / 结束面试 / 结论徽章），
+  对应游戏里的「受击 / 危险」。其余是一条绿调近黑的中性明度序列（#0b0f0d → #e8f0ea），
+  取自街机柜显示屏的暗底。硬边 + 硬阴影 + 极少 glow，是 8/16-bit 平台游戏的作者化暗色，
+  不是「均匀深蓝底 + 通用霓虹」那种偷懒解。深色为默认，左栏「深色模式」按钮可切浅色。
+
+  硬底线自检：单文件 · 内联 CSS · file:// 可开 · 无 emoji（图标全部内联 SVG / CSS 形状）·
+  不编造统计数字（读数只用文案给的 用时 12:34 / 已答 5 / 6.5/10 / 7/10）· 标题 roman · 视口 1440。
+-->
+<title>关卡化面试 · 方向 A</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=VT323&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --page:#090c0a;
+    --bg:#10160f;
+    --bg-2:#151d16;
+    --bg-3:#1d271e;
+    --border:#2b3a2c;
+    --border-bright:#3d5540;
+    --text:#e9f1e9;
+    --text-dim:#a4b7a5;
+    --text-faint:#8ba28d;
+    --energy:#4fd67f;
+    --energy-deep:#1f8f4f;
+    --energy-ink:#07130b;
+    --warn:#ff6a45;
+    --warn-deep:#b23c22;
+    --track:#22301f;
+    --ledge:#0a3a20;
+    --scan:rgba(255,255,255,.016);
+  }
+  :root[data-theme="light"]{
+    --page:#e7ede3;
+    --bg:#f4f7f0;
+    --bg-2:#ffffff;
+    --bg-3:#eef2e8;
+    --border:#c3d1bd;
+    --border-bright:#93ad8e;
+    --text:#161f14;
+    --text-dim:#465043;
+    --text-faint:#5b6957;
+    --energy:#178a49;
+    --energy-deep:#0d6234;
+    --energy-ink:#ffffff;
+    --warn:#c83c1c;
+    --warn-deep:#8f2a12;
+    --track:#d6e0cf;
+    --ledge:#0d6234;
+    --scan:rgba(0,0,0,.02);
+  }
+
+  *{box-sizing:border-box}
+  html{color-scheme:dark}
+  :root[data-theme="light"]{color-scheme:light}
+  body{
+    margin:0;
+    background:var(--page);
+    background-image:repeating-linear-gradient(0deg,transparent 0 3px,var(--scan) 3px 4px);
+    color:var(--text);
+    font-family:"Manrope",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    font-size:15px;
+    line-height:1.7;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ---------- demo page shell ---------- */
+  .stack{max-width:1440px;margin:0 auto;padding:44px 32px 120px;display:flex;flex-direction:column;gap:68px}
+  .page-head{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;border-bottom:2px solid var(--border);padding-bottom:16px}
+  .page-head h1{font-family:"Space Grotesk",sans-serif;font-weight:700;font-size:19px;letter-spacing:.01em;margin:0;color:var(--text)}
+  .page-head span{font-family:"JetBrains Mono",monospace;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-faint)}
+
+  .screen{display:flex;flex-direction:column;gap:14px}
+  .cap{margin:0;display:flex;align-items:center;gap:10px;font-family:"JetBrains Mono",monospace;font-size:12.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-dim)}
+  .cap-no{display:inline-grid;place-items:center;min-width:26px;height:22px;padding:0 5px;background:var(--energy);color:var(--energy-ink);font-family:"VT323",monospace;font-size:19px;letter-spacing:.04em}
+
+  .frame{border:3px solid var(--border-bright);background:var(--bg);box-shadow:9px 9px 0 rgba(0,0,0,.34)}
+  :root[data-theme="light"] .frame{box-shadow:9px 9px 0 rgba(30,45,25,.14)}
+  .frame--app{display:grid;grid-template-columns:266px 1fr;min-height:772px}
+  .frame--solo{display:inline-block;max-width:300px}
+
+  /* ---------- shared HUD atoms ---------- */
+  .hud-label{font-family:"JetBrains Mono",monospace;font-size:12px;font-weight:500;letter-spacing:.15em;text-transform:uppercase;color:var(--text-faint)}
+  .readout{font-family:"VT323",monospace;font-size:32px;line-height:.82;color:var(--energy);letter-spacing:.02em}
+  .readout--sm{font-size:24px}
+
+  .btn{
+    font-family:"Space Grotesk",sans-serif;font-weight:600;font-size:14px;letter-spacing:.01em;
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    border:2px solid var(--border-bright);background:var(--bg-3);color:var(--text);
+    padding:10px 16px;cursor:pointer;
+    box-shadow:0 4px 0 var(--ledge);
+    transition:transform .05s linear,box-shadow .05s linear;
+  }
+  .btn:active{transform:translateY(4px);box-shadow:0 0 0 var(--ledge)}
+  .btn svg{width:16px;height:16px}
+  .btn--primary{background:var(--energy);color:var(--energy-ink);border-color:var(--energy);box-shadow:0 4px 0 var(--energy-deep)}
+  .btn--warn{border-color:var(--warn);color:var(--warn)}
+  .btn--block{width:100%}
+  .btn--lg{padding:15px 26px;font-size:16px}
+
+  .icon-btn{
+    display:inline-grid;place-items:center;width:40px;height:40px;
+    border:2px solid var(--border-bright);background:var(--bg-3);color:var(--text);
+    cursor:pointer;box-shadow:0 4px 0 var(--ledge);transition:transform .05s linear,box-shadow .05s linear;
+    font-family:"Space Grotesk",sans-serif;font-size:18px;line-height:1;
+  }
+  .icon-btn:active{transform:translateY(4px);box-shadow:0 0 0 var(--ledge)}
+  .icon-btn svg{width:18px;height:18px}
+
+  /* ---------- sidebar ---------- */
+  .sidebar{border-right:3px solid var(--border-bright);background:var(--bg-2);padding:18px 15px;display:flex;flex-direction:column;gap:20px}
+  .brand{display:flex;align-items:center;gap:10px;padding:2px 2px 4px}
+  .brand-mark{width:20px;height:20px;background:var(--energy);box-shadow:inset 0 0 0 3px var(--bg-2), inset 0 0 0 6px var(--energy)}
+  .brand-name{font-family:"Space Grotesk",sans-serif;font-weight:700;font-size:16px;letter-spacing:.02em}
+
+  .group{display:flex;flex-direction:column;gap:10px}
+  .group-title{margin:0;font-family:"JetBrains Mono",monospace;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-faint);display:flex;align-items:center;gap:8px}
+  .group-title::after{content:"";flex:1;height:2px;background:var(--border)}
+
+  .hist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+  .hist-item{border:2px solid var(--border);background:var(--bg-3);padding:9px 10px;display:flex;flex-direction:column;gap:5px;cursor:pointer}
+  .hist-item:hover{border-color:var(--border-bright)}
+  .hist-tag{font-family:"VT323",monospace;font-size:16px;line-height:1;letter-spacing:.06em;color:var(--energy)}
+  .hist-name{font-size:13.5px;font-weight:600;color:var(--text);line-height:1.4}
+  .hist-meta{font-family:"JetBrains Mono",monospace;font-size:11.5px;letter-spacing:.06em;color:var(--text-faint)}
+
+  .cmds{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+  .cmd{
+    width:100%;display:flex;align-items:center;gap:9px;text-align:left;
+    border:2px solid var(--border);background:var(--bg-3);color:var(--text);
+    padding:8px 10px;font-family:"Manrope",sans-serif;font-size:13px;font-weight:600;cursor:pointer;
+  }
+  .cmd:hover{border-color:var(--border-bright)}
+  .cmd .dot{width:8px;height:8px;background:var(--energy);flex:none}
+  .cmd--up .dot,.cmd--end .dot{background:var(--warn)}
+  .cmd--down .dot{background:var(--text-faint)}
+  .cmd--end{border-color:var(--warn-deep);color:var(--warn)}
+
+  .session-hud{border:2px solid var(--border-bright);background:var(--bg-3);padding:11px 12px;display:flex;flex-direction:column;gap:9px}
+  .sh-row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .streak{display:flex;gap:4px;padding-top:2px}
+  .streak i{width:12px;height:12px;background:var(--energy);border:2px solid var(--energy-deep)}
+
+  .tools{margin-top:auto;display:flex;flex-direction:column;gap:2px;border-top:2px solid var(--border);padding-top:10px}
+  .tool{
+    display:flex;align-items:center;gap:10px;width:100%;text-align:left;
+    background:none;border:none;color:var(--text-dim);cursor:pointer;
+    font-family:"Manrope",sans-serif;font-size:13px;font-weight:600;padding:7px 6px;
+  }
+  .tool:hover{color:var(--text);background:var(--bg-3)}
+  .tool svg{width:17px;height:17px;flex:none}
+
+  /* ---------- stage / main ---------- */
+  .stage{display:flex;flex-direction:column;background:var(--bg);min-width:0}
+
+  .hud{display:flex;align-items:stretch;border-bottom:3px solid var(--border-bright);position:relative;background:var(--bg-2)}
+  .hud-seg{padding:13px 20px;border-right:2px solid var(--border);display:flex;flex-direction:column;gap:7px;justify-content:center}
+  .hud-seg--wide{flex:1}
+  .hud-stage{font-family:"Space Grotesk",sans-serif;font-weight:600;font-size:15px;color:var(--text)}
+  .hud-track{position:absolute;left:0;right:0;bottom:-3px;height:3px;background:repeating-linear-gradient(90deg,var(--energy) 0 8px,transparent 8px 16px);opacity:.5}
+
+  /* welcome */
+  .welcome{flex:1;display:grid;grid-template-columns:minmax(0,1fr) 190px;gap:44px;padding:84px 56px 60px;align-items:start}
+  .overline{margin:0 0 18px;font-family:"JetBrains Mono",monospace;font-size:13px;letter-spacing:.2em;text-transform:uppercase;color:var(--energy);display:flex;align-items:center;gap:10px}
+  .overline::before{content:"";width:26px;height:3px;background:var(--energy)}
+  .welcome-title{margin:0;font-family:"Space Grotesk",sans-serif;font-weight:700;font-size:46px;line-height:1.14;letter-spacing:-.01em;color:var(--text)}
+  .welcome-body{margin:22px 0 30px;font-size:16px;line-height:1.75;color:var(--text-dim);max-width:52ch}
+  .caps{margin:26px 0 0;font-family:"JetBrains Mono",monospace;font-size:12.5px;letter-spacing:.06em;color:var(--text-faint)}
+
+  .level-path{display:flex;flex-direction:column;align-items:center;gap:0;align-self:start;justify-content:flex-start;padding-top:6px}
+  .level-path .lp-label{font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-faint);margin-bottom:14px}
+  .lp-node{width:18px;height:18px;border:3px solid var(--border-bright);background:var(--bg-3)}
+  .lp-node--start{background:var(--energy);border-color:var(--energy)}
+  .lp-link{width:3px;height:34px;background:repeating-linear-gradient(180deg,var(--border-bright) 0 5px,transparent 5px 10px)}
+  .lp-start-tag{font-family:"VT323",monospace;font-size:17px;color:var(--energy);letter-spacing:.08em;margin-top:8px}
+
+  /* chat */
+  .chat{flex:1;padding:30px 40px;display:flex;flex-direction:column;gap:16px;overflow:hidden}
+  .round-div{display:flex;align-items:center;gap:12px;margin:4px 0}
+  .round-div span{font-family:"VT323",monospace;font-size:19px;letter-spacing:.1em;color:var(--energy);background:var(--bg-2);border:2px solid var(--border-bright);padding:1px 9px}
+  .round-div::after{content:"";flex:1;height:2px;background:var(--border)}
+  .turn{border:2px solid var(--border);background:var(--bg-2);padding:14px 16px;max-width:74ch}
+  .turn--asker{border-left:4px solid var(--border-bright)}
+  .turn--you{align-self:flex-end;border-left:4px solid var(--energy);background:var(--bg-3)}
+  .turn-head{margin-bottom:7px}
+  .who{font-family:"JetBrains Mono",monospace;font-size:11.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--text-faint)}
+  .turn--you .who{color:var(--energy)}
+  .turn-body{margin:0;font-size:15px;line-height:1.75;color:var(--text)}
+
+  /* composer */
+  .composer{border-top:3px solid var(--border-bright);background:var(--bg-2);padding:16px 24px 18px}
+  .composer-box{border:2px solid var(--border-bright);background:var(--bg);display:flex;align-items:flex-end;gap:12px;padding:10px 10px 10px 14px}
+  .composer-box textarea{
+    flex:1;resize:none;border:none;background:none;color:var(--text);
+    font-family:"Manrope",sans-serif;font-size:15px;line-height:1.6;padding:6px 0;outline:none;
+  }
+  .composer-box textarea::placeholder{color:var(--text-faint)}
+  .composer-actions{display:flex;align-items:center;gap:8px}
+  .btn--send{padding:10px 18px}
+  .composer-hint{margin:9px 2px 0;font-family:"JetBrains Mono",monospace;font-size:12px;letter-spacing:.06em;color:var(--text-faint)}
+
+  /* ---------- overlay screens ---------- */
+  .frame--overlay{position:relative;min-height:740px;display:flex;align-items:flex-start;justify-content:center;padding:46px 40px;overflow:hidden}
+  .ghost{position:absolute;inset:0;display:grid;grid-template-columns:266px 1fr;opacity:.55;pointer-events:none}
+  .ghost-side{border-right:3px solid var(--border-bright);background:var(--bg-2)}
+  .ghost-main{padding:0}
+  .ghost-hud{height:64px;border-bottom:3px solid var(--border-bright);background:var(--bg-2)}
+  .ghost-line{height:13px;background:var(--border);margin:24px 40px}
+  .ghost-line:nth-child(3){width:40%}
+  .ghost-line:nth-child(4){width:66%}
+  .ghost-line:nth-child(5){width:52%}
+  .scrim{position:absolute;inset:0;background:rgba(5,8,6,.72)}
+  :root[data-theme="light"] .scrim{background:rgba(225,232,220,.74)}
+
+  .report,.modal{position:relative;background:var(--bg-2);border:3px solid var(--border-bright);box-shadow:11px 11px 0 rgba(0,0,0,.42)}
+  :root[data-theme="light"] .report,:root[data-theme="light"] .modal{box-shadow:11px 11px 0 rgba(30,45,25,.16)}
+
+  .report{width:min(940px,100%);padding:26px 30px 34px}
+  .report-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;border-bottom:2px solid var(--border);padding-bottom:16px;margin-bottom:18px}
+  .stage-clear{display:inline-block;font-family:"VT323",monospace;font-size:20px;letter-spacing:.14em;color:var(--energy);border:2px solid var(--energy-deep);padding:0 8px;margin-bottom:8px}
+  .report-title{margin:0;font-family:"Space Grotesk",sans-serif;font-weight:700;font-size:27px;letter-spacing:.01em;color:var(--text)}
+  .report-head-actions{display:flex;align-items:center;gap:10px;flex:none}
+
+  .report-meta{display:grid;grid-template-columns:repeat(4,1fr);border:2px solid var(--border-bright);background:var(--bg-3)}
+  .rm{padding:12px 14px;border-right:2px solid var(--border);display:flex;flex-direction:column;gap:6px}
+  .rm:last-child{border-right:none}
+  .rm-v{font-family:"Space Grotesk",sans-serif;font-weight:600;font-size:15px;color:var(--text)}
+  .rm-score{font-family:"VT323",monospace;font-size:30px;line-height:.8;color:var(--energy)}
+  .rm-score-max{font-size:16px;color:var(--text-faint)}
+  .rm-verdict{display:inline-block;background:var(--warn);color:#1a0b04;padding:2px 8px;font-size:13px;font-weight:700;letter-spacing:.02em}
+  .score-bar{margin:10px 0 24px;height:16px;border:2px solid var(--border-bright);background:var(--track);padding:2px}
+  .score-bar span{display:block;height:100%;background:var(--energy);background-image:repeating-linear-gradient(90deg,rgba(0,0,0,.28) 0 2px,transparent 2px 9px)}
+
+  .report-sub{margin:0 0 12px;font-family:"JetBrains Mono",monospace;font-size:12.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-dim);display:flex;align-items:center;gap:10px}
+  .report-sub::before{content:"";width:12px;height:12px;background:var(--energy)}
+
+  .qcard{border:2px solid var(--border-bright);background:var(--bg);margin-bottom:26px}
+  .qcard-head{display:flex;align-items:center;gap:14px;padding:13px 15px;border-bottom:2px solid var(--border);background:var(--bg-3)}
+  .q-badge{font-family:"VT323",monospace;font-size:22px;line-height:1;color:var(--energy-ink);background:var(--energy);padding:2px 9px;flex:none}
+  .q-text{margin:0;flex:1;font-size:14.5px;font-weight:600;color:var(--text);line-height:1.5}
+  .q-score{font-family:"VT323",monospace;font-size:28px;line-height:.8;color:var(--energy);flex:none}
+  .q-score span{font-size:15px;color:var(--text-faint)}
+  .qcard-block{padding:13px 16px;border-bottom:2px solid var(--border)}
+  .qcard-block:last-child{border-bottom:none}
+  .qb-label{margin:0 0 6px;font-family:"JetBrains Mono",monospace;font-size:11.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--text-faint)}
+  .qb-body{margin:0;font-size:15px;line-height:1.75;color:var(--text);max-width:70ch}
+
+  .loot{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .loot-card{border:2px solid var(--border-bright);background:var(--bg-3);padding:16px 15px;display:flex;flex-direction:column;gap:10px}
+  .loot-icon{width:34px;height:34px;display:grid;place-items:center;border:2px solid var(--energy-deep);background:var(--bg);color:var(--energy)}
+  .loot-icon svg{width:18px;height:18px}
+  .loot-title{margin:0;font-family:"Space Grotesk",sans-serif;font-weight:700;font-size:15px;color:var(--text)}
+  .loot-list{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+  .loot-list li{position:relative;padding-left:16px;font-size:14px;line-height:1.6;color:var(--text-dim)}
+  .loot-list li::before{content:"";position:absolute;left:0;top:8px;width:7px;height:7px;background:var(--energy)}
+
+  /* settings modal */
+  .modal--settings{width:min(560px,100%);padding:24px 26px 26px}
+  .modal-head{display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid var(--border);padding-bottom:14px;margin-bottom:18px}
+  .modal-title{margin:0;font-family:"Space Grotesk",sans-serif;font-weight:700;font-size:20px;color:var(--text)}
+  .field{margin-bottom:16px}
+  .field-label{display:block;margin:0 0 8px;font-family:"JetBrains Mono",monospace;font-size:11.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--text-faint)}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{
+    font-family:"Manrope",sans-serif;font-size:13px;font-weight:600;
+    border:2px solid var(--border);background:var(--bg-3);color:var(--text-dim);
+    padding:7px 13px;cursor:pointer;
+  }
+  .chip:hover{border-color:var(--border-bright);color:var(--text)}
+  .chip--on{background:var(--energy);border-color:var(--energy);color:var(--energy-ink)}
+  .input{
+    width:100%;border:2px solid var(--border-bright);background:var(--bg);color:var(--text);
+    font-family:"JetBrains Mono",monospace;font-size:13.5px;padding:11px 12px;outline:none;
+  }
+  .input::placeholder{color:var(--text-faint)}
+  .input:focus{border-color:var(--energy)}
+  .modal-foot{display:flex;align-items:center;gap:12px;margin-top:20px}
+  .save-state{display:flex;align-items:center;gap:7px;font-family:"JetBrains Mono",monospace;font-size:12px;letter-spacing:.08em;color:var(--energy)}
+  .save-dot{width:9px;height:9px;background:var(--energy)}
+
+  @media (max-width:1180px){
+    .frame--app,.ghost{grid-template-columns:1fr}
+    .sidebar{border-right:none;border-bottom:3px solid var(--border-bright)}
+    .welcome{grid-template-columns:1fr}
+    .level-path{flex-direction:row;justify-content:flex-start}
+    .lp-link{width:34px;height:3px;background:repeating-linear-gradient(90deg,var(--border-bright) 0 5px,transparent 5px 10px)}
+    .report-meta{grid-template-columns:repeat(2,1fr)}
+    .loot{grid-template-columns:1fr}
+  }
+</style>
+
+<div class="stack">
+
+  <div class="page-head">
+    <h1>面试模拟练习 — 前端全站高保真初稿</h1>
+    <span>方向 A · 像素关卡 / 关卡化进阶练习 · 视口 1440</span>
+  </div>
+
+  <!-- ============ 01 侧栏 ============ -->
+  <section class="screen">
+    <p class="cap"><span class="cap-no">01</span> 侧栏 · 常驻左栏</p>
+    <div class="frame frame--solo">
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span class="brand-name">面试模拟</span>
+        </div>
+
+        <button class="btn btn--primary btn--block">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" shape-rendering="crispEdges" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          新的一场
+        </button>
+
+        <div class="group">
+          <p class="group-title">历史记录</p>
+          <ul class="hist">
+            <li class="hist-item">
+              <span class="hist-tag">已通关</span>
+              <span class="hist-name">后端开发工程师 · 面这个岗位练一下</span>
+              <span class="hist-meta">刚刚 · 3 轮</span>
+            </li>
+            <li class="hist-item">
+              <span class="hist-tag">已通关</span>
+              <span class="hist-name">数据分析师</span>
+              <span class="hist-meta">2 小时前 · 8 轮</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="group">
+          <p class="group-title">面试中可用</p>
+          <ul class="cmds">
+            <li><button class="cmd"><i class="dot"></i>要一个提示</button></li>
+            <li><button class="cmd"><i class="dot"></i>跳过这题</button></li>
+            <li><button class="cmd"><i class="dot"></i>看参考答案</button></li>
+            <li><button class="cmd"><i class="dot"></i>看当前评分</button></li>
+            <li><button class="cmd cmd--up"><i class="dot"></i>加大难度</button></li>
+            <li><button class="cmd cmd--down"><i class="dot"></i>降低难度</button></li>
+            <li><button class="cmd cmd--end"><i class="dot"></i>结束面试</button></li>
+          </ul>
+        </div>
+
+        <div class="group">
+          <p class="group-title">这场面试</p>
+          <div class="session-hud">
+            <div class="sh-row"><span class="hud-label">用时</span><span class="readout readout--sm">12:34</span></div>
+            <div class="sh-row"><span class="hud-label">已答</span><span class="readout readout--sm">5</span></div>
+            <div class="streak" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+          </div>
+        </div>
+
+        <div class="tools">
+          <button class="tool">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M17 9c1.6 1.6 1.6 4.4 0 6"/></svg>
+            语音播报
+          </button>
+          <button class="tool" id="themeToggle">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 14A8 8 0 1 1 10 4a6 6 0 0 0 10 10z"/></svg>
+            深色模式
+          </button>
+          <button class="tool">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5.5 20c1.4-4 11.6-4 13 0"/></svg>
+            我的资料
+          </button>
+          <button class="tool">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" shape-rendering="crispEdges" aria-hidden="true"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>
+            我的题库
+          </button>
+          <button class="tool">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" shape-rendering="crispEdges" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/><rect x="8" y="5" width="4" height="4" fill="var(--bg-2)"/><rect x="14" y="10" width="4" height="4" fill="var(--bg-2)"/><rect x="6" y="15" width="4" height="4" fill="var(--bg-2)"/></svg>
+            模型配置
+          </button>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ============ 02 欢迎首屏 ============ -->
+  <section class="screen">
+    <p class="cap"><span class="cap-no">02</span> 欢迎首屏 · 会话未开始</p>
+    <div class="frame frame--app">
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span class="brand-name">面试模拟</span>
+        </div>
+        <button class="btn btn--primary btn--block">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" shape-rendering="crispEdges" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          新的一场
+        </button>
+        <div class="group">
+          <p class="group-title">历史记录</p>
+          <ul class="hist">
+            <li class="hist-item">
+              <span class="hist-tag">已通关</span>
+              <span class="hist-name">后端开发工程师 · 面这个岗位练一下</span>
+              <span class="hist-meta">刚刚 · 3 轮</span>
+            </li>
+            <li class="hist-item">
+              <span class="hist-tag">已通关</span>
+              <span class="hist-name">数据分析师</span>
+              <span class="hist-meta">2 小时前 · 8 轮</span>
+            </li>
+          </ul>
+        </div>
+        <div class="group">
+          <p class="group-title">面试中可用</p>
+          <ul class="cmds">
+            <li><button class="cmd"><i class="dot"></i>要一个提示</button></li>
+            <li><button class="cmd"><i class="dot"></i>跳过这题</button></li>
+            <li><button class="cmd"><i class="dot"></i>看参考答案</button></li>
+            <li><button class="cmd"><i class="dot"></i>看当前评分</button></li>
+            <li><button class="cmd cmd--up"><i class="dot"></i>加大难度</button></li>
+            <li><button class="cmd cmd--down"><i class="dot"></i>降低难度</button></li>
+            <li><button class="cmd cmd--end"><i class="dot"></i>结束面试</button></li>
+          </ul>
+        </div>
+        <div class="group">
+          <p class="group-title">这场面试</p>
+          <div class="session-hud">
+            <div class="sh-row"><span class="hud-label">用时</span><span class="readout readout--sm">00:00</span></div>
+            <div class="sh-row"><span class="hud-label">已答</span><span class="readout readout--sm">0</span></div>
+            <div class="streak" aria-hidden="true" style="opacity:.3"><i></i><i></i><i></i><i></i><i></i></div>
+          </div>
+        </div>
+        <div class="tools">
+          <button class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M17 9c1.6 1.6 1.6 4.4 0 6"/></svg>语音播报</button>
+          <button class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 14A8 8 0 1 1 10 4a6 6 0 0 0 10 10z"/></svg>深色模式</button>
+          <button class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5.5 20c1.4-4 11.6-4 13 0"/></svg>我的资料</button>
+          <button class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" shape-rendering="crispEdges" aria-hidden="true"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>我的题库</button>
+          <button class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" shape-rendering="crispEdges" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/><rect x="8" y="5" width="4" height="4" fill="var(--bg-2)"/><rect x="14" y="10" width="4" height="4" fill="var(--bg-2)"/><rect x="6" y="15" width="4" height="4" fill="var(--bg-2)"/></svg>模型配置</button>
+        </div>
+      </aside>
+
+      <main class="stage">
+        <div class="hud">
+          <div class="hud-seg"><span class="hud-label">用时</span><span class="readout">00:00</span></div>
+          <div class="hud-seg"><span class="hud-label">已答</span><span class="readout">0</span></div>
+          <div class="hud-seg hud-seg--wide"><span class="hud-label">本关</span><span class="hud-stage">待机 · 尚未开始</span></div>
+          <div class="hud-track" aria-hidden="true"></div>
+        </div>
+
+        <div class="welcome">
+          <div class="welcome-inner">
+            <p class="overline">练习，然后再上场</p>
+            <h1 class="welcome-title">把面试当练习，<br>一题一题过。</h1>
+            <p class="welcome-body">选好岗位和级别，面试官逐题发问、当场点评；结束后给你一份带参考答案和评分的完整复盘。</p>
+            <button class="btn btn--primary btn--lg">开始面试</button>
+            <p class="caps">语音或打字作答 · 逐题评分 · 随时要提示或跳过 · 结束出复盘</p>
+          </div>
+          <div class="level-path" aria-hidden="true">
+            <span class="lp-label">关卡路线</span>
+            <span class="lp-node lp-node--start"></span>
+            <span class="lp-link"></span>
+            <span class="lp-node"></span>
+            <span class="lp-link"></span>
+            <span class="lp-node"></span>
+            <span class="lp-link"></span>
+            <span class="lp-node"></span>
+            <span class="lp-start-tag">START</span>
+          </div>
+        </div>
+      </main>
+    </div>
+  </section>
+
+  <!-- ============ 03 面试进行中 ============ -->
+  <section class="screen">
+    <p class="cap"><span class="cap-no">03</span> 面试进行中 · 回合制对话</p>
+    <div class="frame frame--app">
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span class="brand-name">面试模拟</span>
+        </div>
+        <button class="btn btn--primary btn--block">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" shape-rendering="crispEdges" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          新的一场
+        </button>
+        <div class="group">
+          <p class="group-title">历史记录</p>
+          <ul class="hist">
+            <li class="hist-item">
+              <span class="hist-tag">已通关</span>
+              <span class="hist-name">后端开发工程师 · 面这个岗位练一下</span>
+              <span class="hist-meta">刚刚 · 3 轮</span>
+            </li>
+            <li class="hist-item">
+              <span class="hist-tag">已通关</span>
+              <span class="hist-name">数据分析师</span>
+              <span class="hist-meta">2 小时前 · 8 轮</span>
+            </li>
+          </ul>
+        </div>
+        <div class="group">
+          <p class="group-title">面试中可用</p>
+          <ul class="cmds">
+            <li><button class="cmd"><i class="dot"></i>要一个提示</button></li>
+            <li><button class="cmd"><i class="dot"></i>跳过这题</button></li>
+            <li><button class="cmd"><i class="dot"></i>看参考答案</button></li>
+            <li><button class="cmd"><i class="dot"></i>看当前评分</button></li>
+            <li><button class="cmd cmd--up"><i class="dot"></i>加大难度</button></li>
+            <li><button class="cmd cmd--down"><i class="dot"></i>降低难度</button></li>
+            <li><button class="cmd cmd--end"><i class="dot"></i>结束面试</button></li>
+          </ul>
+        </div>
+        <div class="group">
+          <p class="group-title">这场面试</p>
+          <div class="session-hud">
+            <div class="sh-row"><span class="hud-label">用时</span><span class="readout readout--sm">12:34</span></div>
+            <div class="sh-row"><span class="hud-label">已答</span><span class="readout readout--sm">5</span></div>
+            <div class="streak" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+          </div>
+        </div>
+        <div class="tools">
+          <button class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M17 9c1.6 1.6 1.6 4.4 0 6"/></svg>语音播报</button>
+          <button class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 14A8 8 0 1 1 10 4a6 6 0 0 0 10 10z"/></svg>深色模式</button>
+          <button class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5.5 20c1.4-4 11.6-4 13 0"/></svg>我的资料</button>
+          <button class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" shape-rendering="crispEdges" aria-hidden="true"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>我的题库</button>
+          <button class="tool"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" shape-rendering="crispEdges" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/><rect x="8" y="5" width="4" height="4" fill="var(--bg-2)"/><rect x="14" y="10" width="4" height="4" fill="var(--bg-2)"/><rect x="6" y="15" width="4" height="4" fill="var(--bg-2)"/></svg>模型配置</button>
+        </div>
+      </aside>
+
+      <main class="stage">
+        <div class="hud">
+          <div class="hud-seg"><span class="hud-label">用时</span><span class="readout">12:34</span></div>
+          <div class="hud-seg"><span class="hud-label">已答</span><span class="readout">5</span></div>
+          <div class="hud-seg hud-seg--wide"><span class="hud-label">本关</span><span class="hud-stage">系统设计 · 短链接存储层</span></div>
+          <div class="hud-track" aria-hidden="true"></div>
+        </div>
+
+        <div class="chat">
+          <div class="round-div"><span>ROUND 05</span></div>
+          <div class="turn turn--asker">
+            <div class="turn-head"><span class="who">面试官</span></div>
+            <p class="turn-body">我们先从系统设计聊起。为一个日活百万的应用设计短链接服务的存储层，说说你的取舍。</p>
+          </div>
+          <div class="turn turn--you">
+            <div class="turn-head"><span class="who">你</span></div>
+            <p class="turn-body">先用关系型数据库存 长链→短码 的映射，短码用发号器生成，再加一层缓存扛读。写入量不大，读多写少。</p>
+          </div>
+
+          <div class="round-div"><span>ROUND 06</span></div>
+          <div class="turn turn--asker">
+            <div class="turn-head"><span class="who">面试官</span></div>
+            <p class="turn-body">那发号器怎么保证高可用？如果它挂了，整个写入链路就断了。有没有备选方案？</p>
+          </div>
+          <div class="turn turn--you">
+            <div class="turn-head"><span class="who">你</span></div>
+            <p class="turn-body">可以上多个发号器实例，用号段模式：每个实例一次批量领一段 ID 缓存在本地，发完再领下一段。某个实例挂了，其他实例继续发，只是号段不连续。</p>
+          </div>
+        </div>
+
+        <div class="composer">
+          <div class="composer-box">
+            <textarea rows="2" placeholder="写下你的回答，或点麦克风口述"></textarea>
+            <div class="composer-actions">
+              <button class="icon-btn" aria-label="麦克风">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" shape-rendering="crispEdges" aria-hidden="true"><rect x="9" y="3" width="6" height="11"/><path d="M6 12a6 6 0 0 0 12 0M12 18v3"/></svg>
+              </button>
+              <button class="btn btn--primary btn--send">
+                发送
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" shape-rendering="crispEdges" aria-hidden="true"><path d="M5 12h13M12 6l6 6-6 6"/></svg>
+              </button>
+            </div>
+          </div>
+          <p class="composer-hint">Enter 发送 · Shift + Enter 换行</p>
+        </div>
+      </main>
+    </div>
+  </section>
+
+  <!-- ============ 04 复盘浮层 ============ -->
+  <section class="screen">
+    <p class="cap"><span class="cap-no">04</span> 复盘浮层 · 通关结算画面</p>
+    <div class="frame frame--overlay">
+      <div class="ghost" aria-hidden="true">
+        <div class="ghost-side"></div>
+        <div class="ghost-main">
+          <div class="ghost-hud"></div>
+          <div class="ghost-line"></div>
+          <div class="ghost-line"></div>
+          <div class="ghost-line"></div>
+        </div>
+      </div>
+      <div class="scrim" aria-hidden="true"></div>
+
+      <div class="report">
+        <div class="report-head">
+          <div class="report-title-wrap">
+            <span class="stage-clear">STAGE CLEAR</span>
+            <h2 class="report-title">面试复盘</h2>
+          </div>
+          <div class="report-head-actions">
+            <button class="btn">下载 Word</button>
+            <button class="icon-btn" aria-label="关闭">&times;</button>
+          </div>
+        </div>
+
+        <div class="report-meta">
+          <div class="rm"><span class="hud-label">岗位</span><span class="rm-v">后端开发工程师</span></div>
+          <div class="rm"><span class="hud-label">层级</span><span class="rm-v">中级 · P6</span></div>
+          <div class="rm"><span class="hud-label">综合评分</span><span class="rm-score">6.5<span class="rm-score-max">/10</span></span></div>
+          <div class="rm"><span class="hud-label">结论</span><span class="rm-v"><span class="rm-verdict">Lean Hire</span></span></div>
+        </div>
+        <div class="score-bar" aria-hidden="true"><span style="width:65%"></span></div>
+
+        <h3 class="report-sub">逐题回顾</h3>
+        <article class="qcard">
+          <div class="qcard-head">
+            <span class="q-badge">Q1</span>
+            <p class="q-text">为一个日活百万的应用设计短链接服务的存储层，说说取舍。</p>
+            <span class="q-score">7<span>/10</span></span>
+          </div>
+          <div class="qcard-block">
+            <p class="qb-label">你的回答</p>
+            <p class="qb-body">用关系型数据库存映射，短码用发号器生成，加缓存扛读。读多写少。</p>
+          </div>
+          <div class="qcard-block">
+            <p class="qb-label">参考答案</p>
+            <p class="qb-body">关键点：短码生成策略（发号器 / hash / 预生成池）、存储选型与容量估算、缓存与热点、301 vs 302、防刷与过期。能主动给出 QPS 与存储量的量级估算是加分项。</p>
+          </div>
+          <div class="qcard-block">
+            <p class="qb-label">点评</p>
+            <p class="qb-body">方向对，但没做容量估算，也没提发号器的高可用；追问后才补上。</p>
+          </div>
+        </article>
+
+        <h3 class="report-sub">总体评价</h3>
+        <div class="loot">
+          <div class="loot-card">
+            <div class="loot-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" shape-rendering="crispEdges"><path d="M5 13l4 4 10-11"/></svg></div>
+            <p class="loot-title">做得好的</p>
+            <ul class="loot-list">
+              <li>基础结构清晰，能快速给出可行方案</li>
+              <li>愿意在追问下修正</li>
+            </ul>
+          </div>
+          <div class="loot-card">
+            <div class="loot-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" shape-rendering="crispEdges"><path d="M12 19V6M6 12l6-6 6 6"/></svg></div>
+            <p class="loot-title">可以更好的</p>
+            <ul class="loot-list">
+              <li>缺少量级估算的习惯</li>
+              <li>高可用、容灾常被漏掉</li>
+            </ul>
+          </div>
+          <div class="loot-card">
+            <div class="loot-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" shape-rendering="crispEdges"><path d="M12 5v14M5 12h14"/></svg></div>
+            <p class="loot-title">建议补的</p>
+            <ul class="loot-list">
+              <li>容量估算：QPS / 存储 / 带宽的口算</li>
+              <li>分布式发号器：Snowflake、号段模式</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 05 设置浮层 ============ -->
+  <section class="screen">
+    <p class="cap"><span class="cap-no">05</span> 设置浮层 · 模型配置</p>
+    <div class="frame frame--overlay">
+      <div class="ghost" aria-hidden="true">
+        <div class="ghost-side"></div>
+        <div class="ghost-main">
+          <div class="ghost-hud"></div>
+          <div class="ghost-line"></div>
+          <div class="ghost-line"></div>
+          <div class="ghost-line"></div>
+        </div>
+      </div>
+      <div class="scrim" aria-hidden="true"></div>
+
+      <div class="modal modal--settings">
+        <div class="modal-head">
+          <h2 class="modal-title">模型配置</h2>
+          <button class="icon-btn" aria-label="关闭">&times;</button>
+        </div>
+
+        <div class="field">
+          <p class="field-label">选择服务商</p>
+          <div class="chips">
+            <button class="chip chip--on">DeepSeek</button>
+            <button class="chip">千问</button>
+            <button class="chip">智谱</button>
+            <button class="chip">OpenAI</button>
+            <button class="chip">Moonshot</button>
+            <button class="chip">OpenRouter</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="field-label" for="f-key">API Key</label>
+          <input id="f-key" class="input" type="text" placeholder="sk-••••••••••••••••••••••••">
+        </div>
+        <div class="field">
+          <label class="field-label" for="f-url">Base URL</label>
+          <input id="f-url" class="input" type="text" value="https://api.deepseek.com">
+        </div>
+        <div class="field">
+          <label class="field-label" for="f-model">模型名称</label>
+          <input id="f-model" class="input" type="text" value="deepseek-chat">
+        </div>
+
+        <div class="modal-foot">
+          <button class="btn btn--primary">保存</button>
+          <button class="btn">恢复默认</button>
+          <span class="save-state"><i class="save-dot" aria-hidden="true"></i>已保存</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+  // 深色 / 浅色切换（默认深色 arcade 底）
+  document.getElementById('themeToggle').addEventListener('click', function(){
+    var root = document.documentElement;
+    root.setAttribute('data-theme', root.getAttribute('data-theme') === 'light' ? 'dark' : 'light');
+  });
+  // 服务商 chip 单选
+  document.querySelectorAll('.chips').forEach(function(group){
+    group.addEventListener('click', function(e){
+      var chip = e.target.closest('.chip');
+      if(!chip) return;
+      group.querySelectorAll('.chip').forEach(function(c){ c.classList.remove('chip--on'); });
+      chip.classList.add('chip--on');
+    });
+  });
+</script>

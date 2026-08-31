@@ -5,7 +5,7 @@ cd /d "%~dp0backend"
 if not exist ".env" (
     echo.
     echo  [ERROR] .env not found.
-    echo  Please copy .env.example to backend\.env and fill in your ANTHROPIC_API_KEY.
+    echo  Please copy .env.example to backend\.env and fill in your DEEPSEEK_API_KEY.
     echo.
     pause
     exit /b 1

@@ -1,0 +1,722 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>面试模拟练习 — 前端全站高保真初稿 · 方向 B（参照 Things 3）</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!--
+  面试模拟练习 — 前端全站高保真初稿 · 方向 B
+  ---------------------------------------------------------------
+  参照产品：Things 3（Cultured Code）。
+  核实结论：Things 3 于 2017 年发布时再度荣获 Apple Design Award；
+    业界评论一致称其为「极简、留白慷慨、逐像素打磨、动效轻而有目的、
+    以一枚克制的蓝色（标志性的 blue box）为唯一重点色」的典范。
+    来源：Cultured Code 官方博客「Back From WWDC」(culturedcode.com)、
+          Timothy B. Smith 的 Things 3 评测 (medium.com)。
+
+  Things 3 的设计语言三点：
+    1. chrome 隐形 —— 窄侧栏只当索引，主区是一栏极干净、内容即界面的阅读流，
+       几乎不出现装饰性容器；
+    2. 单一自信的蓝是全站唯一有彩色，其余都是中性明度序列 ——
+       颜色一旦出现就代表「这里有意义」（CTA、选中项、评分）；
+    3. 分组靠留白节奏 + 小号全大写灰标题 + 发丝线，不靠卡片和重阴影；
+       hover 只是一层极淡的填充，active 只下沉一点点。
+
+  我怎么迁移到本产品：
+    - 侧栏 = 一份卷宗的目录：历史记录 / 面试中可用的指令 / 这场面试的读数 / 工具入口；
+    - 聊天区 = 安静的问答手稿，一栏 ≤64ch 的阅读流，「面试官 / 你」只用小标签
+      加一道细蓝边线区分，不做对话气泡；
+    - 复盘 = 一份精排的文档（定义列表 meta + 题卡 + 总体评价三栏），不是仪表盘。
+
+  form（版式）来自内容的哪里：
+    面试是「一问一答的回合」，结束后「被记录、被打分」——
+    所以主结构是一份纵向展开、逐条累积的手稿 / 卷宗，侧栏只是它的目录，
+    复盘则是同一份手稿装订、批注、评分之后的样子。
+
+  选色论证：主色 ≈ oklch(0.55 0.15 258) ≈ #2f6fe0，锚定 Things 的「蓝盒子」——
+    一个冷静、克制、天然代表「专注」的蓝；全站只此一种有彩色，
+    让每一次上色（开始面试、选中项、7/10）都是刻意的，而不是装饰。
+
+  与现线上版（赤陶橙 + Newsreader 衬线 + 纸感暖调）刻意相反：
+    冷中性、Inter 无衬线、发丝线、零纸感、精确安静。
+  字体：Inter（SF Pro 的开源平替，Things 用的系统字正是 SF）同时承担 display 与 body，标题一律 roman。
+  硬约束：单文件 · 内联 CSS · file:// 可开 · 无 emoji（图标均为内联 1.75px 线性 SVG）·
+          正文 ≥14px · 标签 ≥11px · 正文对比度 ≥4.5:1 · 深色模式随系统偏好。
+-->
+<style>
+  *{box-sizing:border-box}
+  :root{
+    --page:#ececef;
+    --bg:#fbfbfc;
+    --sidebar:#f4f4f6;
+    --surface:#ffffff;
+    --text:#22252b;
+    --text-2:#5f636c;
+    --text-3:#767a83;
+    --border:#e6e6ea;
+    --border-2:#eeeef1;
+    --hover:rgba(120,124,140,.10);
+    --accent:#2f6fe0;
+    --accent-press:#2559bd;
+    --accent-soft:#e9f0fc;
+    --font:"Inter","Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,-apple-system,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --page:#101113;
+      --bg:#1b1c1f;
+      --sidebar:#161719;
+      --surface:#212327;
+      --text:#e9eaec;
+      --text-2:#a3a8b1;
+      --text-3:#868b94;
+      --border:#2f3135;
+      --border-2:#282a2e;
+      --hover:rgba(160,168,190,.10);
+      --accent:#5a92f0;
+      --accent-press:#77a6f3;
+      --accent-soft:#22324c;
+    }
+  }
+  html,body{margin:0}
+  body{
+    font-family:var(--font);
+    background:var(--page);
+    color:var(--text);
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+  }
+  .ic{fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+  *:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  .stage{padding:46px 50px 60px}
+  .caption{
+    width:1360px;margin:0 auto 12px;padding-left:2px;
+    font-size:11.5px;letter-spacing:.13em;text-transform:uppercase;
+    color:var(--text-3);font-weight:600;
+  }
+  .caption span{color:var(--accent)}
+  .frame{
+    width:1360px;height:var(--h);margin:0 auto 50px;
+    background:var(--bg);border:1px solid var(--border);border-radius:14px;
+    overflow:hidden;position:relative;
+    box-shadow:0 1px 2px rgba(20,20,30,.05),0 14px 36px rgba(20,20,30,.07);
+  }
+
+  /* ---------- app shell ---------- */
+  .app{display:flex;height:100%}
+  .sidebar{
+    width:266px;flex-shrink:0;background:var(--sidebar);
+    border-right:1px solid var(--border);
+    display:flex;flex-direction:column;padding:15px 12px;overflow:hidden;
+  }
+  .main{flex:1;display:flex;flex-direction:column;min-width:0}
+
+  .brand{display:flex;align-items:center;gap:9px;padding:7px 8px 13px}
+  .brand svg{width:18px;height:18px;color:var(--accent)}
+  .brand b{font-size:14.5px;font-weight:600;letter-spacing:-.012em}
+
+  .newbtn{
+    display:flex;align-items:center;gap:8px;width:100%;
+    padding:9px 11px;border:0;border-radius:9px;
+    background:var(--accent);color:#fff;font:inherit;font-size:13.5px;font-weight:500;
+    cursor:pointer;transition:background .12s;
+  }
+  .newbtn:hover{background:var(--accent-press)}
+  .newbtn:active{transform:translateY(.5px)}
+  .newbtn svg{width:16px;height:16px}
+
+  .grp{margin-top:15px}
+  .grp__h{
+    font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--text-3);font-weight:600;padding:6px 8px;
+  }
+
+  .hist{display:block;padding:8px;border-radius:8px;cursor:pointer;text-decoration:none;color:var(--text)}
+  .hist:hover{background:var(--hover)}
+  .hist b{display:block;font-size:12.5px;font-weight:500;line-height:1.4;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px}
+  .hist span{font-size:11.5px;color:var(--text-2)}
+  .hist--active{background:var(--accent-soft)}
+  .hist--active b{color:var(--accent)}
+  .hist--active span{color:var(--accent);opacity:.8}
+
+  .row{
+    display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:8px;
+    font-size:12.5px;color:var(--text);cursor:pointer;transition:background .11s;line-height:1.3;
+  }
+  .row:hover{background:var(--hover)}
+  .row svg{width:16px;height:16px;color:var(--text-2);flex-shrink:0}
+
+  .stat{display:flex;justify-content:space-between;align-items:baseline;padding:5px 8px;font-size:12px}
+  .stat span{color:var(--text-2)}
+  .stat b{font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:.01em}
+
+  .tools{margin-top:auto;padding-top:11px;border-top:1px solid var(--border)}
+  .tool{
+    display:flex;align-items:center;gap:10px;padding:7px 8px;border-radius:8px;
+    font-size:12px;color:var(--text-2);cursor:pointer;transition:background .11s,color .11s;
+  }
+  .tool:hover{background:var(--hover);color:var(--text)}
+  .tool svg{width:15px;height:15px;flex-shrink:0}
+  .toggle{
+    margin-left:auto;width:30px;height:18px;border-radius:9px;
+    background:var(--border);position:relative;flex-shrink:0;
+  }
+  .toggle::after{
+    content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;
+    background:var(--surface);box-shadow:0 1px 2px rgba(0,0,0,.25);
+  }
+
+  .railnote{
+    margin:auto;max-width:34ch;text-align:center;
+    font-size:12.5px;line-height:1.7;color:var(--text-3);
+  }
+
+  /* ---------- welcome ---------- */
+  .welcome{max-width:600px;padding:100px 0 0 88px}
+  .rule{width:38px;height:2px;background:var(--accent);margin-bottom:22px}
+  .overline{font-size:11.5px;letter-spacing:.15em;text-transform:uppercase;color:var(--text-2);font-weight:600}
+  .welcome h1{margin:15px 0 0;font-size:38px;line-height:1.2;letter-spacing:-.022em;font-weight:600}
+  .welcome .lead{margin:19px 0 0;font-size:15.5px;line-height:1.72;color:var(--text-2);max-width:46ch}
+  .cta{
+    margin-top:28px;display:inline-flex;align-items:center;gap:8px;
+    padding:11px 20px;border-radius:10px;background:var(--accent);color:#fff;
+    font:inherit;font-size:14px;font-weight:500;border:0;cursor:pointer;transition:background .12s;
+  }
+  .cta:hover{background:var(--accent-press)}
+  .cta svg{width:16px;height:16px}
+  .caps{margin-top:18px;font-size:12.5px;color:var(--text-2);letter-spacing:.01em}
+  .manuscript{margin-top:54px;max-width:470px}
+  .manuscript i{display:block;height:1px;background:var(--border);margin:20px 0;position:relative}
+  .manuscript i::before{
+    content:attr(data-q);position:absolute;left:-42px;top:-7px;
+    font-size:10px;letter-spacing:.08em;color:var(--text-3);
+  }
+  .manuscript i:first-child::before{color:var(--accent)}
+
+  /* ---------- chat ---------- */
+  .mhead{
+    height:54px;border-bottom:1px solid var(--border);flex-shrink:0;
+    display:flex;align-items:center;justify-content:space-between;padding:0 28px;
+  }
+  .mhead .t{font-size:13px;font-weight:600}
+  .mhead .t em{font-style:normal;color:var(--text-3);font-weight:400;margin-left:9px}
+  .mhead .r{font-size:12px;color:var(--text-2);letter-spacing:.02em}
+  .thread{flex:1;overflow:hidden;padding:36px 40px 8px}
+  .thread__inner{max-width:64ch}
+  .turn{margin-bottom:26px}
+  .turn__who{
+    font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--text-3);font-weight:600;margin-bottom:7px;
+  }
+  .turn__text{font-size:15px;line-height:1.74;color:var(--text)}
+  .turn--you{border-left:2px solid var(--accent);padding-left:16px}
+  .turn--you .turn__who{color:var(--accent)}
+
+  .dock{border-top:1px solid var(--border);padding:15px 40px 17px;flex-shrink:0;background:var(--bg)}
+  .composer{
+    max-width:64ch;border:1px solid var(--border);border-radius:12px;background:var(--surface);
+    padding:8px 8px 8px 14px;display:flex;align-items:flex-end;gap:8px;transition:border-color .12s;
+  }
+  .composer:focus-within{border-color:var(--accent)}
+  .composer textarea{
+    flex:1;border:0;outline:0;resize:none;font:inherit;font-size:14.5px;line-height:1.6;
+    background:transparent;color:var(--text);height:42px;padding:8px 0;
+  }
+  .composer textarea::placeholder{color:var(--text-3)}
+  .iconbtn{
+    width:34px;height:34px;border-radius:8px;border:0;background:transparent;color:var(--text-2);
+    display:grid;place-items:center;cursor:pointer;flex-shrink:0;transition:background .11s,color .11s;
+  }
+  .iconbtn:hover{background:var(--hover);color:var(--text)}
+  .iconbtn svg{width:18px;height:18px}
+  .iconbtn--send{background:var(--accent);color:#fff}
+  .iconbtn--send:hover{background:var(--accent-press);color:#fff}
+  .dock__hint{max-width:64ch;margin-top:9px;font-size:12px;color:var(--text-2)}
+
+  /* ---------- overlays ---------- */
+  .scrim{
+    position:absolute;inset:0;background:rgba(16,18,24,.36);
+    -webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);
+    display:flex;justify-content:center;align-items:flex-start;padding:40px 0;
+  }
+  .sheet{
+    background:var(--surface);border:1px solid var(--border);border-radius:16px;
+    box-shadow:0 24px 70px rgba(12,15,24,.30);
+    width:760px;max-height:100%;display:flex;flex-direction:column;overflow:hidden;
+  }
+  .sheet--sm{width:452px}
+
+  .doc__head{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:20px 26px;border-bottom:1px solid var(--border);flex-shrink:0;
+  }
+  .doc__head h2{margin:0;font-size:17px;font-weight:600;letter-spacing:-.012em}
+  .doc__actions{display:flex;gap:8px;align-items:center}
+  .btn{
+    display:inline-flex;align-items:center;gap:7px;padding:8px 13px;border-radius:9px;
+    font:inherit;font-size:12.5px;font-weight:500;cursor:pointer;
+    border:1px solid var(--border);background:var(--surface);color:var(--text);transition:background .11s;
+  }
+  .btn:hover{background:var(--hover)}
+  .btn svg{width:15px;height:15px}
+  .btn--primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn--primary:hover{background:var(--accent-press)}
+  .btn--icon{padding:8px;color:var(--text-2)}
+
+  .doc__body{padding:22px 26px 26px;overflow:hidden}
+  .doc__meta{
+    display:grid;grid-template-columns:1fr 1fr;gap:14px 30px;
+    margin:0 0 22px;padding-bottom:20px;border-bottom:1px solid var(--border);
+  }
+  .doc__meta>div{display:flex;flex-direction:column;gap:4px}
+  .doc__meta dt{font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--text-3);font-weight:600}
+  .doc__meta dd{margin:0;font-size:14.5px;font-weight:550}
+  .doc__meta dd.score{color:var(--accent);font-variant-numeric:tabular-nums}
+
+  .doc__h3{
+    font-size:11px;letter-spacing:.13em;text-transform:uppercase;
+    color:var(--text-2);font-weight:700;margin:0 0 14px;
+  }
+  .qcard{border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:24px}
+  .qcard__top{display:flex;justify-content:space-between;align-items:baseline}
+  .qcard__no{font-size:11.5px;font-weight:700;letter-spacing:.07em;color:var(--text-3)}
+  .qcard__score{font-size:14px;font-weight:650;color:var(--accent);font-variant-numeric:tabular-nums}
+  .qcard__q{margin:8px 0 14px;font-size:14.5px;font-weight:550;line-height:1.55}
+  .qblock{padding:11px 0;border-top:1px solid var(--border-2)}
+  .qblock .lbl{
+    display:block;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--text-3);font-weight:600;margin-bottom:5px;
+  }
+  .qblock p{margin:0;font-size:13px;line-height:1.7;color:var(--text-2)}
+
+  .assess{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .assess__col{background:var(--bg);border:1px solid var(--border-2);border-radius:11px;padding:14px 14px 7px}
+  .assess__col h4{margin:0 0 10px;font-size:12px;font-weight:650}
+  .assess__col ul{margin:0;padding:0;list-style:none}
+  .assess__col li{
+    font-size:12px;line-height:1.55;color:var(--text-2);
+    padding-left:13px;position:relative;margin-bottom:9px;
+  }
+  .assess__col li::before{
+    content:"";position:absolute;left:0;top:7px;width:4px;height:4px;border-radius:50%;background:var(--accent);
+  }
+
+  /* ---------- settings form ---------- */
+  .form{padding:22px 26px 24px}
+  .field{margin-bottom:16px}
+  .field>label{
+    display:block;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--text-3);font-weight:600;margin-bottom:8px;
+  }
+  .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{
+    padding:6px 13px;border-radius:999px;border:1px solid var(--border);
+    font-size:12.5px;color:var(--text-2);cursor:pointer;background:var(--surface);transition:background .11s;
+  }
+  .chip:hover{background:var(--hover)}
+  .chip--on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:600}
+  .input{
+    width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:9px;
+    font:inherit;font-size:13.5px;background:var(--surface);color:var(--text);
+  }
+  .input:focus{outline:0;border-color:var(--accent)}
+  .form__foot{display:flex;align-items:center;gap:10px;margin-top:20px}
+  .saved{margin-left:auto;display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--text-2)}
+  .saved svg{width:13px;height:13px;color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="stage">
+
+  <!-- ============ 01 侧栏 ============ -->
+  <p class="caption"><span>01</span> &nbsp;侧栏 · 常驻左栏</p>
+  <div class="frame" style="--h:640px">
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M8 4H5v16h3M16 4h3v16h-3"/></svg>
+          <b>面试模拟</b>
+        </div>
+        <button class="newbtn"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>新的一场</button>
+
+        <div class="grp">
+          <div class="grp__h">历史记录</div>
+          <a class="hist hist--active">
+            <b>后端开发工程师 · 面这个岗位练一下</b><span>刚刚 · 3 轮</span>
+          </a>
+          <a class="hist"><b>数据分析师</b><span>2 小时前 · 8 轮</span></a>
+        </div>
+
+        <div class="grp">
+          <div class="grp__h">面试中可用</div>
+          <div class="row"><svg class="ic" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5.9 1.2.9 2h5.2c0-.8.3-1.5.9-2A6 6 0 0 0 12 3z"/></svg>要一个提示</div>
+          <div class="row"><svg class="ic" viewBox="0 0 24 24"><path d="M6 6l8 6-8 6z"/><path d="M18 5v14"/></svg>跳过这题</div>
+          <div class="row"><svg class="ic" viewBox="0 0 24 24"><path d="M5 5a1 1 0 0 1 1-1h11v16H6a1 1 0 0 0-1 1z"/><path d="M9 4v14"/></svg>看参考答案</div>
+          <div class="row"><svg class="ic" viewBox="0 0 24 24"><path d="M4 14a8 8 0 0 1 16 0"/><path d="M12 14l3.5-3"/></svg>看当前评分</div>
+          <div class="row"><svg class="ic" viewBox="0 0 24 24"><path d="M12 19V6M6 12l6-6 6 6"/></svg>加大难度</div>
+          <div class="row"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v13M6 12l6 6 6-6"/></svg>降低难度</div>
+          <div class="row"><svg class="ic" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2"/></svg>结束面试</div>
+        </div>
+
+        <div class="grp">
+          <div class="grp__h">这场面试</div>
+          <div class="stat"><span>用时</span><b>12:34</b></div>
+          <div class="stat"><span>已答</span><b>5</b></div>
+        </div>
+
+        <div class="tools">
+          <div class="tool"><svg class="ic" viewBox="0 0 24 24"><path d="M11 6L6.5 9.5H3v5h3.5L11 18z"/><path d="M15.5 9.5a3.5 3.5 0 0 1 0 5"/></svg>语音播报</div>
+          <div class="tool"><svg class="ic" viewBox="0 0 24 24"><path d="M20 13.5A7.5 7.5 0 1 1 10.5 4 6 6 0 0 0 20 13.5z"/></svg>深色模式<span class="toggle"></span></div>
+          <div class="tool"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5.5 19.5a6.5 6.5 0 0 1 13 0"/></svg>我的资料</div>
+          <div class="tool"><svg class="ic" viewBox="0 0 24 24"><path d="M12 4l8 4.5-8 4.5-8-4.5z"/><path d="M4 13.5l8 4.5 8-4.5"/></svg>我的题库</div>
+          <div class="tool"><svg class="ic" viewBox="0 0 24 24"><path d="M4 8h9M17 8h3M4 16h3M11 16h9"/><circle cx="15" cy="8" r="2"/><circle cx="9" cy="16" r="2"/></svg>模型配置</div>
+        </div>
+      </aside>
+      <div class="main">
+        <div class="railnote">左侧为常驻侧栏，在欢迎页、面试进行中、复盘浮层时始终可见。</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 02 欢迎首屏 ============ -->
+  <p class="caption"><span>02</span> &nbsp;欢迎首屏 · 会话未开始</p>
+  <div class="frame" style="--h:680px">
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M8 4H5v16h3M16 4h3v16h-3"/></svg><b>面试模拟</b>
+        </div>
+        <button class="newbtn"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>新的一场</button>
+        <div class="grp">
+          <div class="grp__h">历史记录</div>
+          <a class="hist"><b>后端开发工程师 · 面这个岗位练一下</b><span>刚刚 · 3 轮</span></a>
+          <a class="hist"><b>数据分析师</b><span>2 小时前 · 8 轮</span></a>
+        </div>
+        <div class="grp">
+          <div class="grp__h">面试中可用</div>
+          <div class="row"><svg class="ic" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5.9 1.2.9 2h5.2c0-.8.3-1.5.9-2A6 6 0 0 0 12 3z"/></svg>要一个提示</div>
+          <div class="row"><svg class="ic" viewBox="0 0 24 24"><path d="M6 6l8 6-8 6z"/><path d="M18 5v14"/></svg>跳过这题</div>
+          <div class="row"><svg class="ic" viewBox="0 0 24 24"><path d="M5 5a1 1 0 0 1 1-1h11v16H6a1 1 0 0 0-1 1z"/><path d="M9 4v14"/></svg>看参考答案</div>
+          <div class="row"><svg class="ic" viewBox="0 0 24 24"><path d="M4 14a8 8 0 0 1 16 0"/><path d="M12 14l3.5-3"/></svg>看当前评分</div>
+          <div class="row"><svg class="ic" viewBox="0 0 24 24"><path d="M12 19V6M6 12l6-6 6 6"/></svg>加大难度</div>
+          <div class="row"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v13M6 12l6 6 6-6"/></svg>降低难度</div>
+          <div class="row"><svg class="ic" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2"/></svg>结束面试</div>
+        </div>
+        <div class="grp">
+          <div class="grp__h">这场面试</div>
+          <div class="stat"><span>用时</span><b>12:34</b></div>
+          <div class="stat"><span>已答</span><b>5</b></div>
+        </div>
+        <div class="tools">
+          <div class="tool"><svg class="ic" viewBox="0 0 24 24"><path d="M11 6L6.5 9.5H3v5h3.5L11 18z"/><path d="M15.5 9.5a3.5 3.5 0 0 1 0 5"/></svg>语音播报</div>
+          <div class="tool"><svg class="ic" viewBox="0 0 24 24"><path d="M20 13.5A7.5 7.5 0 1 1 10.5 4 6 6 0 0 0 20 13.5z"/></svg>深色模式<span class="toggle"></span></div>
+          <div class="tool"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5.5 19.5a6.5 6.5 0 0 1 13 0"/></svg>我的资料</div>
+          <div class="tool"><svg class="ic" viewBox="0 0 24 24"><path d="M12 4l8 4.5-8 4.5-8-4.5z"/><path d="M4 13.5l8 4.5 8-4.5"/></svg>我的题库</div>
+          <div class="tool"><svg class="ic" viewBox="0 0 24 24"><path d="M4 8h9M17 8h3M4 16h3M11 16h9"/><circle cx="15" cy="8" r="2"/><circle cx="9" cy="16" r="2"/></svg>模型配置</div>
+        </div>
+      </aside>
+      <div class="main">
+        <div class="welcome">
+          <div class="rule"></div>
+          <div class="overline">练习，然后再上场</div>
+          <h1>把面试当练习，<br>一题一题过。</h1>
+          <p class="lead">选好岗位和级别，面试官逐题发问、当场点评；结束后给你一份带参考答案和评分的完整复盘。</p>
+          <button class="cta">开始面试<svg class="ic" viewBox="0 0 24 24"><path d="M5 12h13M13 6l6 6-6 6"/></svg></button>
+          <div class="caps">语音或打字作答 · 逐题评分 · 随时要提示或跳过 · 结束出复盘</div>
+          <div class="manuscript">
+            <i data-q="Q1"></i><i data-q="Q2"></i><i data-q="Q3"></i><i data-q="Q4"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 03 面试进行中 ============ -->
+  <p class="caption"><span>03</span> &nbsp;面试进行中</p>
+  <div class="frame" style="--h:720px">
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M8 4H5v16h3M16 4h3v16h-3"/></svg><b>面试模拟</b>
+        </div>
+        <button class="newbtn"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>新的一场</button>
+        <div class="grp">
+          <div class="grp__h">历史记录</div>
+          <a class="hist hist--active"><b>后端开发工程师 · 面这个岗位练一下</b><span>刚刚 · 3 轮</span></a>
+          <a class="hist"><b>数据分析师</b><span>2 小时前 · 8 轮</span></a>
+        </div>
+        <div class="grp">
+          <div class="grp__h">面试中可用</div>
+          <div class="row"><svg class="ic" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5.9 1.2.9 2h5.2c0-.8.3-1.5.9-2A6 6 0 0 0 12 3z"/></svg>要一个提示</div>
+          <div class="row"><svg class="ic" viewBox="0 0 24 24"><path d="M6 6l8 6-8 6z"/><path d="M18 5v14"/></svg>跳过这题</div>
+          <div class="row"><svg class="ic" viewBox="0 0 24 24"><path d="M5 5a1 1 0 0 1 1-1h11v16H6a1 1 0 0 0-1 1z"/><path d="M9 4v14"/></svg>看参考答案</div>
+          <div class="row"><svg class="ic" viewBox="0 0 24 24"><path d="M4 14a8 8 0 0 1 16 0"/><path d="M12 14l3.5-3"/></svg>看当前评分</div>
+          <div class="row"><svg class="ic" viewBox="0 0 24 24"><path d="M12 19V6M6 12l6-6 6 6"/></svg>加大难度</div>
+          <div class="row"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v13M6 12l6 6 6-6"/></svg>降低难度</div>
+          <div class="row"><svg class="ic" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2"/></svg>结束面试</div>
+        </div>
+        <div class="grp">
+          <div class="grp__h">这场面试</div>
+          <div class="stat"><span>用时</span><b>12:34</b></div>
+          <div class="stat"><span>已答</span><b>5</b></div>
+        </div>
+        <div class="tools">
+          <div class="tool"><svg class="ic" viewBox="0 0 24 24"><path d="M11 6L6.5 9.5H3v5h3.5L11 18z"/><path d="M15.5 9.5a3.5 3.5 0 0 1 0 5"/></svg>语音播报</div>
+          <div class="tool"><svg class="ic" viewBox="0 0 24 24"><path d="M20 13.5A7.5 7.5 0 1 1 10.5 4 6 6 0 0 0 20 13.5z"/></svg>深色模式<span class="toggle"></span></div>
+          <div class="tool"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5.5 19.5a6.5 6.5 0 0 1 13 0"/></svg>我的资料</div>
+          <div class="tool"><svg class="ic" viewBox="0 0 24 24"><path d="M12 4l8 4.5-8 4.5-8-4.5z"/><path d="M4 13.5l8 4.5 8-4.5"/></svg>我的题库</div>
+          <div class="tool"><svg class="ic" viewBox="0 0 24 24"><path d="M4 8h9M17 8h3M4 16h3M11 16h9"/><circle cx="15" cy="8" r="2"/><circle cx="9" cy="16" r="2"/></svg>模型配置</div>
+        </div>
+      </aside>
+      <div class="main">
+        <div class="mhead">
+          <div class="t">后端开发工程师<em>中级 · P6</em></div>
+          <div class="r">进行中 · 第 3 轮</div>
+        </div>
+        <div class="thread">
+          <div class="thread__inner">
+            <div class="turn">
+              <div class="turn__who">面试官</div>
+              <div class="turn__text">我们先从系统设计聊起。为一个日活百万的应用设计短链接服务的存储层，说说你的取舍。</div>
+            </div>
+            <div class="turn turn--you">
+              <div class="turn__who">你</div>
+              <div class="turn__text">先用关系型数据库存 长链→短码 的映射，短码用发号器生成，再加一层缓存扛读。写入量不大，读多写少。</div>
+            </div>
+            <div class="turn">
+              <div class="turn__who">面试官</div>
+              <div class="turn__text">那发号器怎么保证高可用？如果它挂了，整个写入链路就断了。有没有备选方案？</div>
+            </div>
+            <div class="turn turn--you">
+              <div class="turn__who">你</div>
+              <div class="turn__text">可以做成号段模式：多个发号节点各自领一段号码区间，用完再向中心库领新段。中心库短暂不可用时，节点还能用手里的号段继续发，避免单点直接断链。</div>
+            </div>
+          </div>
+        </div>
+        <div class="dock">
+          <div class="composer">
+            <textarea placeholder="写下你的回答，或点麦克风口述"></textarea>
+            <button class="iconbtn" aria-label="语音输入"><svg class="ic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0M12 17v4"/></svg></button>
+            <button class="iconbtn iconbtn--send" aria-label="发送"><svg class="ic" viewBox="0 0 24 24"><path d="M12 20V5M6 11l6-6 6 6"/></svg></button>
+          </div>
+          <div class="dock__hint">Enter 发送 · Shift + Enter 换行</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 04 复盘浮层 ============ -->
+  <p class="caption"><span>04</span> &nbsp;复盘浮层</p>
+  <div class="frame" style="--h:940px">
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M8 4H5v16h3M16 4h3v16h-3"/></svg><b>面试模拟</b>
+        </div>
+        <button class="newbtn"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>新的一场</button>
+        <div class="grp">
+          <div class="grp__h">历史记录</div>
+          <a class="hist hist--active"><b>后端开发工程师 · 面这个岗位练一下</b><span>刚刚 · 3 轮</span></a>
+          <a class="hist"><b>数据分析师</b><span>2 小时前 · 8 轮</span></a>
+        </div>
+        <div class="grp">
+          <div class="grp__h">面试中可用</div>
+          <div class="row"><svg class="ic" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5.9 1.2.9 2h5.2c0-.8.3-1.5.9-2A6 6 0 0 0 12 3z"/></svg>要一个提示</div>
+          <div class="row"><svg class="ic" viewBox="0 0 24 24"><path d="M6 6l8 6-8 6z"/><path d="M18 5v14"/></svg>跳过这题</div>
+          <div class="row"><svg class="ic" viewBox="0 0 24 24"><path d="M5 5a1 1 0 0 1 1-1h11v16H6a1 1 0 0 0-1 1z"/><path d="M9 4v14"/></svg>看参考答案</div>
+          <div class="row"><svg class="ic" viewBox="0 0 24 24"><path d="M4 14a8 8 0 0 1 16 0"/><path d="M12 14l3.5-3"/></svg>看当前评分</div>
+          <div class="row"><svg class="ic" viewBox="0 0 24 24"><path d="M12 19V6M6 12l6-6 6 6"/></svg>加大难度</div>
+          <div class="row"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v13M6 12l6 6 6-6"/></svg>降低难度</div>
+          <div class="row"><svg class="ic" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2"/></svg>结束面试</div>
+        </div>
+        <div class="grp">
+          <div class="grp__h">这场面试</div>
+          <div class="stat"><span>用时</span><b>18:52</b></div>
+          <div class="stat"><span>已答</span><b>6</b></div>
+        </div>
+        <div class="tools">
+          <div class="tool"><svg class="ic" viewBox="0 0 24 24"><path d="M11 6L6.5 9.5H3v5h3.5L11 18z"/><path d="M15.5 9.5a3.5 3.5 0 0 1 0 5"/></svg>语音播报</div>
+          <div class="tool"><svg class="ic" viewBox="0 0 24 24"><path d="M20 13.5A7.5 7.5 0 1 1 10.5 4 6 6 0 0 0 20 13.5z"/></svg>深色模式<span class="toggle"></span></div>
+          <div class="tool"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5.5 19.5a6.5 6.5 0 0 1 13 0"/></svg>我的资料</div>
+          <div class="tool"><svg class="ic" viewBox="0 0 24 24"><path d="M12 4l8 4.5-8 4.5-8-4.5z"/><path d="M4 13.5l8 4.5 8-4.5"/></svg>我的题库</div>
+          <div class="tool"><svg class="ic" viewBox="0 0 24 24"><path d="M4 8h9M17 8h3M4 16h3M11 16h9"/><circle cx="15" cy="8" r="2"/><circle cx="9" cy="16" r="2"/></svg>模型配置</div>
+        </div>
+      </aside>
+      <div class="main">
+        <div class="mhead">
+          <div class="t">后端开发工程师<em>中级 · P6</em></div>
+          <div class="r">已结束</div>
+        </div>
+        <div class="thread">
+          <div class="thread__inner">
+            <div class="turn"><div class="turn__who">面试官</div><div class="turn__text">那发号器怎么保证高可用？如果它挂了，整个写入链路就断了。</div></div>
+            <div class="turn turn--you"><div class="turn__who">你</div><div class="turn__text">可以做成号段模式，多个发号节点各自领一段号码区间……</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="scrim">
+      <div class="sheet">
+        <div class="doc__head">
+          <h2>面试复盘</h2>
+          <div class="doc__actions">
+            <button class="btn btn--primary"><svg class="ic" viewBox="0 0 24 24"><path d="M12 4v11M8 11l4 4 4-4M6 19h12"/></svg>下载 Word</button>
+            <button class="btn btn--icon" aria-label="关闭"><svg class="ic" viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
+          </div>
+        </div>
+        <div class="doc__body">
+          <dl class="doc__meta">
+            <div><dt>岗位</dt><dd>后端开发工程师</dd></div>
+            <div><dt>层级</dt><dd>中级 · P6</dd></div>
+            <div><dt>综合评分</dt><dd class="score">6.5/10</dd></div>
+            <div><dt>结论</dt><dd>Lean Hire</dd></div>
+          </dl>
+
+          <div class="doc__h3">逐题回顾</div>
+          <article class="qcard">
+            <div class="qcard__top">
+              <span class="qcard__no">Q1</span>
+              <span class="qcard__score">7/10</span>
+            </div>
+            <p class="qcard__q">为一个日活百万的应用设计短链接服务的存储层，说说取舍。</p>
+            <div class="qblock">
+              <span class="lbl">你的回答</span>
+              <p>用关系型数据库存映射，短码用发号器生成，加缓存扛读。读多写少。</p>
+            </div>
+            <div class="qblock">
+              <span class="lbl">参考答案</span>
+              <p>关键点：短码生成策略（发号器 / hash / 预生成池）、存储选型与容量估算、缓存与热点、301 vs 302、防刷与过期。能主动给出 QPS 与存储量的量级估算是加分项。</p>
+            </div>
+            <div class="qblock">
+              <span class="lbl">点评</span>
+              <p>方向对，但没做容量估算，也没提发号器的高可用；追问后才补上。</p>
+            </div>
+          </article>
+
+          <div class="doc__h3">总体评价</div>
+          <div class="assess">
+            <div class="assess__col">
+              <h4>做得好的</h4>
+              <ul>
+                <li>基础结构清晰，能快速给出可行方案</li>
+                <li>愿意在追问下修正</li>
+              </ul>
+            </div>
+            <div class="assess__col">
+              <h4>可以更好的</h4>
+              <ul>
+                <li>缺少量级估算的习惯</li>
+                <li>高可用、容灾常被漏掉</li>
+              </ul>
+            </div>
+            <div class="assess__col">
+              <h4>建议补的</h4>
+              <ul>
+                <li>容量估算：QPS / 存储 / 带宽的口算</li>
+                <li>分布式发号器：Snowflake、号段模式</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 05 设置类浮层 ============ -->
+  <p class="caption"><span>05</span> &nbsp;设置类浮层 · 模型配置</p>
+  <div class="frame" style="--h:660px">
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">
+          <svg class="ic" viewBox="0 0 24 24"><path d="M8 4H5v16h3M16 4h3v16h-3"/></svg><b>面试模拟</b>
+        </div>
+        <button class="newbtn"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>新的一场</button>
+        <div class="grp">
+          <div class="grp__h">历史记录</div>
+          <a class="hist"><b>后端开发工程师 · 面这个岗位练一下</b><span>刚刚 · 3 轮</span></a>
+          <a class="hist"><b>数据分析师</b><span>2 小时前 · 8 轮</span></a>
+        </div>
+        <div class="grp">
+          <div class="grp__h">面试中可用</div>
+          <div class="row"><svg class="ic" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5.9 1.2.9 2h5.2c0-.8.3-1.5.9-2A6 6 0 0 0 12 3z"/></svg>要一个提示</div>
+          <div class="row"><svg class="ic" viewBox="0 0 24 24"><path d="M6 6l8 6-8 6z"/><path d="M18 5v14"/></svg>跳过这题</div>
+          <div class="row"><svg class="ic" viewBox="0 0 24 24"><path d="M5 5a1 1 0 0 1 1-1h11v16H6a1 1 0 0 0-1 1z"/><path d="M9 4v14"/></svg>看参考答案</div>
+          <div class="row"><svg class="ic" viewBox="0 0 24 24"><path d="M4 14a8 8 0 0 1 16 0"/><path d="M12 14l3.5-3"/></svg>看当前评分</div>
+          <div class="row"><svg class="ic" viewBox="0 0 24 24"><path d="M12 19V6M6 12l6-6 6 6"/></svg>加大难度</div>
+          <div class="row"><svg class="ic" viewBox="0 0 24 24"><path d="M12 5v13M6 12l6 6 6-6"/></svg>降低难度</div>
+          <div class="row"><svg class="ic" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2"/></svg>结束面试</div>
+        </div>
+        <div class="grp">
+          <div class="grp__h">这场面试</div>
+          <div class="stat"><span>用时</span><b>12:34</b></div>
+          <div class="stat"><span>已答</span><b>5</b></div>
+        </div>
+        <div class="tools">
+          <div class="tool"><svg class="ic" viewBox="0 0 24 24"><path d="M11 6L6.5 9.5H3v5h3.5L11 18z"/><path d="M15.5 9.5a3.5 3.5 0 0 1 0 5"/></svg>语音播报</div>
+          <div class="tool"><svg class="ic" viewBox="0 0 24 24"><path d="M20 13.5A7.5 7.5 0 1 1 10.5 4 6 6 0 0 0 20 13.5z"/></svg>深色模式<span class="toggle"></span></div>
+          <div class="tool"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5.5 19.5a6.5 6.5 0 0 1 13 0"/></svg>我的资料</div>
+          <div class="tool"><svg class="ic" viewBox="0 0 24 24"><path d="M12 4l8 4.5-8 4.5-8-4.5z"/><path d="M4 13.5l8 4.5 8-4.5"/></svg>我的题库</div>
+          <div class="tool"><svg class="ic" viewBox="0 0 24 24"><path d="M4 8h9M17 8h3M4 16h3M11 16h9"/><circle cx="15" cy="8" r="2"/><circle cx="9" cy="16" r="2"/></svg>模型配置</div>
+        </div>
+      </aside>
+      <div class="main">
+        <div class="welcome">
+          <div class="rule"></div>
+          <div class="overline">练习，然后再上场</div>
+          <h1>把面试当练习，<br>一题一题过。</h1>
+          <p class="lead">选好岗位和级别，面试官逐题发问、当场点评。</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="scrim">
+      <div class="sheet sheet--sm">
+        <div class="doc__head">
+          <h2>模型配置</h2>
+          <div class="doc__actions">
+            <button class="btn btn--icon" aria-label="关闭"><svg class="ic" viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
+          </div>
+        </div>
+        <div class="form">
+          <div class="field">
+            <label>选择服务商</label>
+            <div class="chips">
+              <span class="chip chip--on">DeepSeek</span>
+              <span class="chip">千问</span>
+              <span class="chip">智谱</span>
+              <span class="chip">OpenAI</span>
+              <span class="chip">Moonshot</span>
+              <span class="chip">OpenRouter</span>
+            </div>
+          </div>
+          <div class="field">
+            <label>API Key</label>
+            <input class="input" type="password" value="sk-6f2a9c4e18b7d05a3e91" aria-label="API Key">
+          </div>
+          <div class="field">
+            <label>Base URL</label>
+            <input class="input" type="text" value="https://api.deepseek.com" aria-label="Base URL">
+          </div>
+          <div class="field">
+            <label>模型名称</label>
+            <input class="input" type="text" value="deepseek-chat" aria-label="模型名称">
+          </div>
+          <div class="form__foot">
+            <button class="btn btn--primary">保存</button>
+            <button class="btn">恢复默认</button>
+            <span class="saved"><svg class="ic" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg>已保存</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
