@@ -15,6 +15,8 @@
 - **面试报告** — 完整问答 + 标准答案 + 逐题评分 + 综合结论，可导出 Word
 - **多模型支持** — DeepSeek、千问、智谱、OpenAI、Moonshot、OpenRouter（Claude）或任意 OpenAI 兼容接口
 - **深色 / 浅色模式**、**可暂停计时器**、**语音播报（TTS）**
+- <img width="1920" height="945" alt="image" src="https://github.com/user-attachments/assets/4a006caf-a117-4134-9ff6-7c5c0bb969a6" />
+
 
 ---
 
